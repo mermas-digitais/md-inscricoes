@@ -6,7 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, CheckCircle, FileText, AlertCircle } from "lucide-react"
+import { Mail, CheckCircle, FileText } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 export default function HomePage() {
@@ -27,22 +27,22 @@ export default function HomePage() {
         body: JSON.stringify({ email }),
       })
 
+      const data = await response.json()
+
       if (response.ok) {
         setStep("verify")
         toast({
           title: "Código enviado!",
-          description:
-            process.env.NODE_ENV === "development"
-              ? "Em desenvolvimento: verifique o console do servidor para o código."
-              : "Verifique seu email e digite o código de 6 dígitos.",
+          description: "Verifique seu email e digite o código de 6 dígitos.",
         })
       } else {
-        throw new Error("Erro ao enviar código")
+        throw new Error(data.error || "Erro ao enviar código")
       }
     } catch (error) {
+      console.error("Error:", error)
       toast({
         title: "Erro",
-        description: "Não foi possível enviar o código. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível enviar o código. Tente novamente.",
         variant: "destructive",
       })
     } finally {
@@ -66,12 +66,13 @@ export default function HomePage() {
         // Redirecionar para o formulário de inscrição
         window.location.href = `/inscricao?email=${encodeURIComponent(email)}`
       } else {
-        throw new Error("Código inválido")
+        const data = await response.json()
+        throw new Error(data.error || "Código inválido")
       }
     } catch (error) {
       toast({
         title: "Código inválido",
-        description: "Verifique o código e tente novamente.",
+        description: error instanceof Error ? error.message : "Verifique o código e tente novamente.",
         variant: "destructive",
       })
     } finally {
@@ -95,16 +96,6 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {process.env.NODE_ENV === "development" && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-600" />
-                  <p className="text-sm text-yellow-800">
-                    <strong>Modo desenvolvimento:</strong> Verifique o console do servidor para o código de verificação.
-                  </p>
-                </div>
-              </div>
-            )}
             <form onSubmit={handleVerificationSubmit} className="space-y-4">
               <div>
                 <Input
@@ -123,7 +114,15 @@ export default function HomePage() {
               >
                 {isLoading ? "Verificando..." : "Verificar código"}
               </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("welcome")}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setStep("welcome")
+                  setVerificationCode("")
+                }}
+              >
                 Voltar
               </Button>
             </form>
