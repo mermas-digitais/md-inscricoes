@@ -6,7 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, CheckCircle, FileText } from "lucide-react"
+import { Mail, CheckCircle, FileText, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 export default function HomePage() {
@@ -31,7 +31,10 @@ export default function HomePage() {
         setStep("verify")
         toast({
           title: "Código enviado!",
-          description: "Verifique seu email e digite o código de 6 dígitos.",
+          description:
+            process.env.NODE_ENV === "development"
+              ? "Em desenvolvimento: verifique o console do servidor para o código."
+              : "Verifique seu email e digite o código de 6 dígitos.",
         })
       } else {
         throw new Error("Erro ao enviar código")
@@ -92,6 +95,16 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {process.env.NODE_ENV === "development" && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-600" />
+                  <p className="text-sm text-yellow-800">
+                    <strong>Modo desenvolvimento:</strong> Verifique o console do servidor para o código de verificação.
+                  </p>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleVerificationSubmit} className="space-y-4">
               <div>
                 <Input
