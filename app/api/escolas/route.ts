@@ -22,8 +22,39 @@ export async function GET(request: NextRequest) {
 
     // Se há um termo de busca, filtrar por nome
     if (search && search.trim().length > 0) {
-      // Usar busca por texto usando ILIKE para busca case-insensitive
-      query = query.ilike("nome", `%${search.trim()}%`);
+      const searchTerm = search.trim();
+
+      try {
+        // Tentar usar a função RPC para busca sem acentos
+        const { data: escolas, error } = await supabase.rpc(
+          "search_escolas_sem_acento",
+          {
+            search_term: searchTerm,
+            escola_tipo: tipo && tipo.trim().length > 0 ? tipo.trim() : null,
+            result_limit: limit,
+          }
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        return NextResponse.json({ escolas });
+      } catch (rpcError) {
+        console.warn(
+          "RPC function not available, using fallback search:",
+          rpcError
+        );
+
+        // Fallback: busca simples com ilike
+        if (tipo && tipo.trim().length > 0) {
+          query = query.eq("tipo", tipo.trim());
+        }
+        query = query.ilike("nome", `%${searchTerm}%`);
+      }
+    } else if (tipo && tipo.trim().length > 0) {
+      // Apenas filtro por tipo, sem busca textual
+      query = query.eq("tipo", tipo.trim());
     }
 
     // Aplicar limite
