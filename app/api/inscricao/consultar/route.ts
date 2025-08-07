@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
       cep: inscricao.cep,
       curso_interesse: inscricao.curso, // Map curso to curso_interesse
       experiencia_nivel: inscricao.escolaridade, // Map escolaridade to experiencia_nivel
-      motivacao: `Ano escolar: ${inscricao.ano_escolar}`, // Create motivacao from ano_escolar
+      motivacao: `Ano escolar: ${inscricao.ano_escolar}${
+        inscricao.escola ? ` | Escola: ${inscricao.escola}` : ""
+      }`, // Include escola info
       disponibilidade: "A definir", // Default value
       como_soube: "Não informado", // Default value
       created_at: inscricao.created_at,

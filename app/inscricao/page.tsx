@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { CustomButton } from "@/components/ui/custom-button";
 import { CustomInput } from "@/components/ui/custom-input";
 import { Header } from "@/components/header";
+import EscolaSelector from "@/components/ui/escola-selector";
 import {
   Select,
   SelectContent,
@@ -42,6 +43,7 @@ interface FormData {
   telefone_whatsapp: string;
   escolaridade: string;
   ano_escolar: string;
+  escola: string; // Novo campo para a escola
 }
 
 // Schemas de validação Zod para cada step
@@ -137,6 +139,7 @@ const step3Schema = z.object({
 const step4Schema = z.object({
   escolaridade: z.string().min(1, "Escolaridade é obrigatória"),
   ano_escolar: z.string().min(1, "Ano escolar é obrigatório"),
+  escola: z.string().min(2, "Nome da escola é obrigatório"),
 });
 
 export default function InscricaoPage() {
@@ -158,6 +161,7 @@ export default function InscricaoPage() {
     telefone_whatsapp: "",
     escolaridade: "",
     ano_escolar: "",
+    escola: "", // Novo campo para a escola
   });
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -196,6 +200,7 @@ export default function InscricaoPage() {
   const step4Form = useZodForm(step4Schema, {
     escolaridade: formData.escolaridade,
     ano_escolar: formData.ano_escolar,
+    escola: formData.escola,
   });
 
   // Sincronizar os dados do form quando o formData mudar (sem marcar como touched)
@@ -242,7 +247,8 @@ export default function InscricaoPage() {
   useEffect(() => {
     step4Form.setFieldValue("escolaridade", formData.escolaridade, false);
     step4Form.setFieldValue("ano_escolar", formData.ano_escolar, false);
-  }, [formData.escolaridade, formData.ano_escolar]);
+    step4Form.setFieldValue("escola", formData.escola, false);
+  }, [formData.escolaridade, formData.ano_escolar, formData.escola]);
 
   // Revalidar quando o schema mudar (cpfExists)
   useEffect(() => {
@@ -941,6 +947,24 @@ export default function InscricaoPage() {
                               )}
                           </div>
                         )}
+
+                        {/* Campo da Escola */}
+                        <div>
+                          <EscolaSelector
+                            value={formData.escola}
+                            onChange={(escola) =>
+                              handleInputChange("escola", escola)
+                            }
+                            placeholder="Digite o nome da sua escola..."
+                            escolaridade={formData.escolaridade}
+                            error={
+                              step4Form.formState.touched.escola &&
+                              step4Form.formState.errors.escola
+                                ? step4Form.formState.errors.escola
+                                : undefined
+                            }
+                          />
+                        </div>
                       </CardContent>
                     </Card>
                   )}
@@ -981,6 +1005,14 @@ export default function InscricaoPage() {
                               </span>
                               <span className="text-sm text-gray-800 font-poppins">
                                 {formData.cpf}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium text-gray-600 font-poppins">
+                                Email:
+                              </span>
+                              <span className="text-sm text-gray-800 font-poppins">
+                                {formData.email}
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -1086,6 +1118,14 @@ export default function InscricaoPage() {
                               </span>
                               <span className="text-sm text-gray-800 font-poppins">
                                 {formData.ano_escolar}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium text-gray-600 font-poppins">
+                                Escola:
+                              </span>
+                              <span className="text-sm text-gray-800 font-poppins">
+                                {formData.escola}
                               </span>
                             </div>
                           </div>
