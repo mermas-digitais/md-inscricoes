@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,7 @@ const cursoDisplayNames: { [key: string]: string } = {
 
 export default function AcompanharPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const cpfFromUrl = searchParams.get("cpf");
 
   const [cpf, setCpf] = useState(cpfFromUrl || "");
@@ -89,12 +90,14 @@ export default function AcompanharPage() {
   // Auto-search se CPF veio da URL
   useEffect(() => {
     if (cpfFromUrl && cpfFromUrl.length >= 11) {
-      handleSearch();
+      handleSearch(cpfFromUrl);
     }
   }, [cpfFromUrl]);
 
-  const handleSearch = async () => {
-    if (!cpf || cpf.length < 11) {
+  const handleSearch = async (cpfToSearch?: string) => {
+    const cpfValue = cpfToSearch || cpf;
+
+    if (!cpfValue || cpfValue.length < 11) {
       setError("Por favor, digite um CPF válido");
       return;
     }
@@ -104,13 +107,15 @@ export default function AcompanharPage() {
     setSearched(true);
 
     try {
-      const response = await fetch("/api/inscricao/consultar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ cpf: cpf.replace(/\D/g, "") }),
-      });
+      // Codificar o CPF para URL (os pontos e traços precisam ser codificados)
+      const encodedCpf = encodeURIComponent(cpfValue);
+
+      const response = await fetch(
+        `/api/inscricao/consultar?cpf=${encodedCpf}`,
+        {
+          method: "GET",
+        }
+      );
 
       const data = await response.json();
 
@@ -135,6 +140,13 @@ export default function AcompanharPage() {
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
     value = value.replace(/(\d{3})(\d{1,2})/, "$1-$2");
     setCpf(value);
+  };
+
+  const handleNewSearch = () => {
+    if (cpf && cpf.length >= 11) {
+      // Navegar para a URL com query parameter
+      router.push(`/acompanhar?cpf=${encodeURIComponent(cpf)}`);
+    }
   };
 
   const handleShare = () => {
@@ -230,7 +242,7 @@ export default function AcompanharPage() {
                 </div>
                 <div className="flex items-end">
                   <Button
-                    onClick={handleSearch}
+                    onClick={handleNewSearch}
                     disabled={loading || cpf.length < 14}
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                   >
