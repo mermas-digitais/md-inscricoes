@@ -1,28 +1,4 @@
--- Script para adicionar tabela de escolas e campo na tabela de inscrições
--- Execute este script no Supabase SQL Editor
-
--- 0. Ativar extensão para busca sem acentos
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
--- 1. Criar tabela de escolas
-CREATE TABLE IF NOT EXISTS escolas (
-  id SERIAL PRIMARY KEY,
-  nome TEXT NOT NULL,
-  tipo TEXT NOT NULL CHECK (tipo IN ('Municipal', 'Estadual', 'Federal', 'Particular')),
-  cidade TEXT DEFAULT 'Imperatriz',
-  estado TEXT DEFAULT 'MA',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-
--- 2. Adicionar índices para busca por nome (insensível a acentos e maiúsculas)
-CREATE INDEX IF NOT EXISTS idx_escolas_nome ON escolas USING GIN (to_tsvector('portuguese', nome));
-CREATE INDEX IF NOT EXISTS idx_escolas_nome_unaccent ON escolas USING GIN (to_tsvector('portuguese', unaccent(lower(nome))));
-CREATE INDEX IF NOT EXISTS idx_escolas_tipo ON escolas (tipo);
-
--- 3. Inserir/atualizar dados das escolas de Imperatriz-MA (UPSERT)
--- Adiciona constraint unique se não existir
-ALTER TABLE escolas ADD CONSTRAINT IF NOT EXISTS unique_escola_nome UNIQUE (nome);
-
+-- Dados atualizados das escolas de Imperatriz-MA
 INSERT INTO escolas (nome, tipo) VALUES
 ('Centro Educa Mais Caminho do Futuro', 'Estadual'),
 ('Centro Educa Mais Mourao Rangel', 'Estadual'),
@@ -45,40 +21,40 @@ INSERT INTO escolas (nome, tipo) VALUES
 ('Centro de Ensino Vinicius de Moraes', 'Estadual'),
 ('Centro de Ensino de Educação de Jovens e Adultos II', 'Estadual'),
 ('Colégio Militar Tiradentes II - Imperatriz', 'Estadual'),
-('Iema - Instituto Estadual de Educação Ciencia e Tecnologia do Ma - Unidade Vocacional Imperatriz', 'Estadual'),
-('Instituto Estadual de Educação Ciencia e Tecnologia do Maranhao - Iema Pleno Imperatriz', 'Estadual'),
-('Colégio Estadual Inf Professora Juracy Athayde Conceicao', 'Municipal'),
+('Iema - Instituto Estadual de Educação Ciência e Tecnologia do MA - Unidade Vocacional Imperatriz', 'Estadual'),
+('Instituto Estadual de Educação Ciência e Tecnologia do Maranhão - Iema Pleno Imperatriz', 'Estadual'),
+('Colégio Estadual Inf Professora Juracy Athayde Conceição', 'Municipal'),
 ('Colégio Estadual Maranhense', 'Municipal'),
-('Conselho Comunitario do Pq Alvorada Dois', 'Municipal'),
+('Conselho Comunitário do Pq Alvorada Dois', 'Municipal'),
 ('Creche Aconchego', 'Municipal'),
 ('Creche Cantinho do Saber', 'Municipal'),
-('Creche Cidade Esperanca', 'Municipal'),
+('Creche Cidade Esperança', 'Municipal'),
 ('Creche Moranguinho', 'Municipal'),
-('Creche Municipal Arco Iris', 'Municipal'),
+('Creche Municipal Arco Íris', 'Municipal'),
 ('Creche Municipal Caminho Feliz', 'Municipal'),
 ('Creche Municipal Cantinho da Alegria I', 'Municipal'),
 ('Creche Municipal Cirandinha', 'Municipal'),
-('Creche Municipal Educandario do Saber', 'Municipal'),
-('Creche Municipal Irma Dulce', 'Municipal'),
+('Creche Municipal Educandário do Saber', 'Municipal'),
+('Creche Municipal Irmã Dulce', 'Municipal'),
 ('Creche Municipal Mundo Infantil', 'Municipal'),
 ('Creche Municipal Santa Margarida', 'Municipal'),
-('Creche Municipalizada Maranhao do Sul', 'Municipal'),
+('Creche Municipalizada Maranhão do Sul', 'Municipal'),
 ('Creche Risco e Rabisco', 'Municipal'),
 ('Creche Santa Terezinha', 'Municipal'),
 ('Creche Vovo Suelly', 'Municipal'),
-('Educandario Lirio dos Vales', 'Municipal'),
+('Educandário Lirio dos Vales', 'Municipal'),
 ('Escola Espaço Infantil Maranatha', 'Municipal'),
 ('Escola Municipal Adalberto Franklin Pereira de Castro', 'Municipal'),
 ('Escola Municipal Afonso Pena', 'Municipal'),
 ('Escola Municipal Antonio Leite Andrade', 'Municipal'),
-('Escola Municipal Bernardo Sayao', 'Municipal'),
+('Escola Municipal Bernardo Sayão', 'Municipal'),
 ('Escola Municipal Casa de Dom Bosco', 'Municipal'),
 ('Escola Municipal Castro Alves I', 'Municipal'),
 ('Escola Municipal Castro Alves II', 'Municipal'),
 ('Escola Municipal Chaparral', 'Municipal'),
 ('Escola Municipal Coelho Neto', 'Municipal'),
 ('Escola Municipal Constantino Barbosa da Silva', 'Municipal'),
-('Escola Municipal Creche Esperanca', 'Municipal'),
+('Escola Municipal Creche Esperança', 'Municipal'),
 ('Escola Municipal Darcy Ribeiro', 'Municipal'),
 ('Escola Municipal Dom Marcelino', 'Municipal'),
 ('Escola Municipal Dom Pedro I', 'Municipal'),
@@ -89,12 +65,12 @@ INSERT INTO escolas (nome, tipo) VALUES
 ('Escola Municipal Enock Alves Bezerra', 'Municipal'),
 ('Escola Municipal Fernanda Branco Oliveira', 'Municipal'),
 ('Escola Municipal Fraternidade', 'Municipal'),
-('Escola Municipal Frei Manoel Procopio', 'Municipal'),
+('Escola Municipal Frei Manoel Procópio', 'Municipal'),
 ('Escola Municipal Frei Tadeu', 'Municipal'),
 ('Escola Municipal Giovanni Zanni', 'Municipal'),
 ('Escola Municipal Humberto de Campos', 'Municipal'),
-('Escola Municipal João Goncalves Santiago', 'Municipal'),
-('Escola Municipal João Guimaraes', 'Municipal'),
+('Escola Municipal João Gonçalves Santiago', 'Municipal'),
+('Escola Municipal João Guimarães', 'Municipal'),
 ('Escola Municipal João Lisboa', 'Municipal'),
 ('Escola Municipal João Silva', 'Municipal'),
 ('Escola Municipal José de Alencar', 'Municipal'),
@@ -117,7 +93,7 @@ INSERT INTO escolas (nome, tipo) VALUES
 ('Escola Municipal Morada do Sol', 'Municipal'),
 ('Escola Municipal Moranguinho', 'Municipal'),
 ('Escola Municipal Moreira Neto', 'Municipal'),
-('Escola Municipal Nossa Senhora da Conceicao', 'Municipal'),
+('Escola Municipal Nossa Senhora da Conceição', 'Municipal'),
 ('Escola Municipal Nossa Senhora de Nazare', 'Municipal'),
 ('Escola Municipal Nucleo Santa Cruz', 'Municipal'),
 ('Escola Municipal Paulo Freire', 'Municipal'),
@@ -139,17 +115,17 @@ INSERT INTO escolas (nome, tipo) VALUES
 ('Escola Municipal Santos Dumont', 'Municipal'),
 ('Escola Municipal Senhor Jesus', 'Municipal'),
 ('Escola Municipal Sousa Lima', 'Municipal'),
-('Escola Municipal Sumare', 'Municipal'),
-('Escola Municipal São Felix', 'Municipal'),
+('Escola Municipal Sumaré', 'Municipal'),
+('Escola Municipal São Félix', 'Municipal'),
 ('Escola Municipal São Francisco', 'Municipal'),
-('Escola Municipal São Francisco do Caninde', 'Municipal'),
+('Escola Municipal São Francisco do Canindé', 'Municipal'),
 ('Escola Municipal São Jorge I', 'Municipal'),
-('Escola Municipal São Sebastiao', 'Municipal'),
+('Escola Municipal São Sebastião', 'Municipal'),
 ('Escola Municipal São Vicente de Paula', 'Municipal'),
-('Escola Municipal Tia Emilia', 'Municipal'),
+('Escola Municipal Tia Emília', 'Municipal'),
 ('Escola Municipal Tiradentes II', 'Municipal'),
 ('Escola Municipal Tocantins', 'Municipal'),
-('Escola Municipal Tome de Sousa', 'Municipal'),
+('Escola Municipal Tomé de Sousa', 'Municipal'),
 ('Escola Municipal Vital Brazil', 'Municipal'),
 ('Escola Municipal Wady Fiquene', 'Municipal'),
 ('Escola Municipal de 1 Grau Princesa Izabel', 'Municipal'),
@@ -164,55 +140,13 @@ INSERT INTO escolas (nome, tipo) VALUES
 ('Escola Municipal de Educação Infantil Maria Luiza Coelho Brandao', 'Municipal'),
 ('Escola Municipal de Educação Infantil Marlene Soares', 'Municipal'),
 ('Escola Municipal de Educação Infantil Nossa Senhora de Fatima', 'Municipal'),
-('Escola Municipal de Educação Infantil Pequeno Principe', 'Municipal'),
+('Escola Municipal de Educação Infantil Pequeno Príncipe', 'Municipal'),
 ('Escola Municipal de Educação Infantil Shirley Farias Torres Ferreira', 'Municipal'),
-('Escola Municipal de Ensino Fundamental Goncalves Dias', 'Municipal'),
+('Escola Municipal de Ensino Fundamental Gonçalves Dias', 'Municipal'),
 ('Escola Municipal de Ensino Fundamental Ipiranga', 'Municipal'),
 ('Escola Municipalizada Frei Paulo de Graymoor', 'Municipal'),
-('Fundacao Educacional Pirangi', 'Municipal')
+('Fundação Educacional Pirangi', 'Municipal')
 ON CONFLICT (nome) DO UPDATE SET 
   tipo = EXCLUDED.tipo,
   cidade = EXCLUDED.cidade,
   estado = EXCLUDED.estado;
-
--- 4. Adicionar campo escola na tabela de inscrições
-ALTER TABLE inscricoes 
-ADD COLUMN IF NOT EXISTS escola TEXT;
-
--- 5. Comentário sobre o campo escola
-COMMENT ON COLUMN inscricoes.escola IS 'Nome da escola onde a aluna estuda';
-
--- 6. Criar política de segurança para a tabela escolas (permitir leitura pública)
-ALTER TABLE escolas ENABLE ROW LEVEL SECURITY;
-
--- Remover política existente se houver e criar nova
-DROP POLICY IF EXISTS "Enable read access for all users" ON escolas;
-CREATE POLICY "Enable read access for all users" ON escolas
-FOR SELECT USING (true);
-
--- 7. Criar função para busca sem acentos e case-insensitive
-CREATE OR REPLACE FUNCTION search_escolas_sem_acento(
-  search_term TEXT,
-  escola_tipo TEXT DEFAULT NULL,
-  result_limit INTEGER DEFAULT 50
-)
-RETURNS TABLE(id INTEGER, nome TEXT, tipo TEXT) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT e.id, e.nome, e.tipo
-  FROM escolas e
-  WHERE 
-    (escola_tipo IS NULL OR e.tipo = escola_tipo)
-    AND (
-      search_term IS NULL 
-      OR search_term = '' 
-      OR unaccent(lower(e.nome)) LIKE '%' || unaccent(lower(search_term)) || '%'
-    )
-  ORDER BY e.nome
-  LIMIT result_limit;
-END;
-$$ LANGUAGE plpgsql;
-
--- 8. Garantir que a tabela escolas seja acessível via API do Supabase
-GRANT SELECT ON escolas TO anon;
-GRANT SELECT ON escolas TO authenticated;
