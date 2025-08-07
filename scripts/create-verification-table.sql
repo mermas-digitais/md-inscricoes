@@ -7,9 +7,16 @@ CREATE TABLE IF NOT EXISTS verification_codes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create a unique constraint to prevent duplicate codes with overlapping validity periods
+-- This will be enforced at the application level instead of database level to avoid complexity
+-- ALTER TABLE verification_codes ADD CONSTRAINT unique_active_codes EXCLUDE USING gist (code WITH =, tsrange(created_at, expires_at) WITH &&);
+
 -- Create index for better performance
 CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON verification_codes(email);
 CREATE INDEX IF NOT EXISTS idx_verification_codes_expires ON verification_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_verification_codes_code ON verification_codes(code);
+-- Remove the conditional index as NOW() is not IMMUTABLE
+-- CREATE INDEX IF NOT EXISTS idx_verification_codes_active ON verification_codes(code) WHERE expires_at > NOW();
 
 -- Enable RLS
 ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
