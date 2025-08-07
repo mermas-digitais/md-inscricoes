@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
           telefone_whatsapp: data.telefone_whatsapp,
           escolaridade: data.escolaridade,
           ano_escolar: data.ano_escolar,
+          escola: data.escola, // Novo campo da escola
           curso,
           status: "INSCRITA",
           created_at: new Date().toISOString(),

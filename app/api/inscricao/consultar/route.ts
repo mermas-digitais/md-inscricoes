@@ -6,18 +6,29 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { cpf } = await request.json();
+    const { searchParams } = new URL(request.url);
+    const cpf = searchParams.get("cpf");
 
     if (!cpf) {
       return NextResponse.json({ error: "CPF é obrigatório" }, { status: 400 });
     }
 
-    // Remove formatting from CPF
-    const cleanCpf = cpf.replace(/\D/g, "");
+    // Decodificar o CPF da URL (pode vir com %2E para pontos)
+    const decodedCpf = decodeURIComponent(cpf);
 
-    if (cleanCpf.length !== 11) {
+    // Formatar CPF para comparação (XXX.XXX.XXX-XX) - igual ao que está no banco
+    const formatCPF = (cpf: string) => {
+      const numbers = cpf.replace(/\D/g, "");
+      if (numbers.length !== 11) {
+        return null;
+      }
+      return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    };
+
+    const formattedCPF = formatCPF(decodedCpf);
+    if (!formattedCPF) {
       return NextResponse.json(
         { error: "CPF deve ter 11 dígitos" },
         { status: 400 }
@@ -28,7 +39,7 @@ export async function POST(request: NextRequest) {
     const { data: inscricao, error } = await supabase
       .from("inscricoes")
       .select("*")
-      .eq("cpf", cleanCpf)
+      .eq("cpf", formattedCPF)
       .single();
 
     if (error) {
@@ -61,7 +72,9 @@ export async function POST(request: NextRequest) {
       cep: inscricao.cep,
       curso_interesse: inscricao.curso, // Map curso to curso_interesse
       experiencia_nivel: inscricao.escolaridade, // Map escolaridade to experiencia_nivel
-      motivacao: `Ano escolar: ${inscricao.ano_escolar}`, // Create motivacao from ano_escolar
+      motivacao: `Ano escolar: ${inscricao.ano_escolar}${
+        inscricao.escola ? ` | Escola: ${inscricao.escola}` : ""
+      }`, // Include escola info
       disponibilidade: "A definir", // Default value
       como_soube: "Não informado", // Default value
       created_at: inscricao.created_at,
