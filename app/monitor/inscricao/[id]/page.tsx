@@ -212,7 +212,6 @@ export default function InscricaoDetalhesPage() {
         <div className="max-w-6xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-                
               <Button
                 variant="outline"
                 onClick={() => {
