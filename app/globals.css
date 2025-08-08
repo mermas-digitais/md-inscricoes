@@ -179,10 +179,34 @@
   input[type="tel"],
   input[type="date"],
   input[type="password"],
+  input[type="search"],
   textarea,
   select {
-    font-size: 16px;
+    font-size: 16px !important;
     font-family: var(--font-poppins);
+    appearance: none;
+    -webkit-appearance: none;
+    -webkit-transform: scale(1);
+    transform: scale(1);
+  }
+
+  /* Específico para iOS Safari */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+      zoom: 1;
+    }
+  }
+
+  /* Prevenir zoom em foco */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    font-size: 16px !important;
+    -webkit-transform: scale(1);
+    transform: scale(1);
   }
 
   /* Responsividade para mobile */

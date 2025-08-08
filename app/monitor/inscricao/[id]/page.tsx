@@ -25,7 +25,7 @@ interface Inscricao {
   telefone_whatsapp: string;
   escolaridade: string;
   ano_escolar: string;
-  status: "INSCRITA" | "MATRICULADA" | "CANCELADA";
+  status: "INSCRITA" | "MATRICULADA" | "CANCELADA" | "EXCEDENTE";
   curso: string;
   created_at: string;
   documento_rg_cpf?: string;
@@ -155,6 +155,10 @@ export default function InscricaoDetalhesPage() {
         );
       case "CANCELADA":
         return <Badge className="bg-red-100 text-red-800">Cancelada</Badge>;
+      case "EXCEDENTE":
+        return (
+          <Badge className="bg-orange-100 text-orange-800">Excedente</Badge>
+        );
       default:
         return <Badge>{status}</Badge>;
     }

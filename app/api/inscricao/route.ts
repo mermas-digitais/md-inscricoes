@@ -23,6 +23,26 @@ export async function POST(request: NextRequest) {
     const curso =
       data.escolaridade === "Ensino Fundamental 2" ? "Jogos" : "Robótica";
 
+    // Verificar quantas inscrições já existem para este curso (apenas INSCRITA e MATRICULADA contam para o limite)
+    const { data: existingInscricoes, error: countError } = await supabase
+      .from("inscricoes")
+      .select("id", { count: "exact" })
+      .eq("curso", curso)
+      .in("status", ["INSCRITA", "MATRICULADA"]);
+
+    if (countError) {
+      console.error("Error counting inscricoes:", countError);
+      return NextResponse.json(
+        { error: "Erro ao verificar disponibilidade de vagas" },
+        { status: 500 }
+      );
+    }
+
+    // Definir o status baseado na disponibilidade de vagas
+    const vagasOcupadas = existingInscricoes?.length || 0;
+    const LIMITE_VAGAS = 50;
+    const status = vagasOcupadas >= LIMITE_VAGAS ? "EXCEDENTE" : "INSCRITA";
+
     // Insert into database
     const { data: inscricao, error } = await supabase
       .from("inscricoes")
@@ -45,7 +65,7 @@ export async function POST(request: NextRequest) {
           ano_escolar: data.ano_escolar,
           escola: data.escola, // Novo campo da escola
           curso,
-          status: "INSCRITA",
+          status,
           created_at: new Date().toISOString(),
         },
       ])
