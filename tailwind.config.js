@@ -9,6 +9,9 @@ module.exports = {
     extend: {
       fontFamily: {
         poppins: ["var(--font-poppins)", "Poppins", "sans-serif"],
+        inter: ["var(--font-inter)", "Inter", "sans-serif"],
+        "nunito-sans": ["var(--font-nunito-sans)", "Nunito Sans", "sans-serif"],
+        "paytone-one": ["var(--font-paytone-one)", "Paytone One", "sans-serif"],
       },
       fontSize: {
         base: ["16px", "1.5"],
