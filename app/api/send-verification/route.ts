@@ -132,110 +132,178 @@ export async function POST(request: NextRequest) {
         process.env.SMTP_FROM ||
         "Mermãs Digitais <noreply@mermasdigitais.com.br>",
       to: email,
-      subject: "✨ Código de verificação - Mermãs Digitais",
+      subject: "💜 Confirme seu e-mail - Mermãs Digitais",
       html: `
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <title>Código de Verificação</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Poppins', Arial, sans-serif; line-height: 1.6; }
-          </style>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+            rel="stylesheet"
+          />
         </head>
-        <body style="margin: 0; padding: 0; background: #f3f4f6;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-            
-            <!-- Header com fundo arco-íris -->
-            <div style="background: linear-gradient(135deg, #FFD700, #FFA500, #FF69B4, #FF1493); padding: 25px 20px; text-align: center; border-bottom: 3px solid #FF4A97;">
-              <!-- Logo da Mermãs Digitais -->
-              <div style="margin-bottom: 15px;">
-                <img src="https://yibtbjjamezyxbepdnnw.supabase.co/storage/v1/object/public/asset/logo_asset.png" alt="Mermãs Digitais" style="height: 35px; max-width: 180px; object-fit: contain;" />
+                 <body
+           style="
+             margin: 0;
+             padding: 0;
+             font-family: Arial, sans-serif;
+             background-color: #9854cb;
+             color: #212529;
+             width: 100vw;
+             min-height: 100vh;
+           "
+         >
+                     <div
+             style="
+               background-image: url('https://yibtbjjamezyxbepdnnw.supabase.co/storage/v1/object/public/asset//email_asset.png');
+               background-size: cover;
+               background-repeat: no-repeat;
+               background-position: center;
+               width: 100vw;
+               min-height: 100vh;
+               position: relative;
+               padding: 40px;
+               box-sizing: border-box;
+               display: flex;
+               align-items: flex-start;
+               justify-content: center;
+               padding-top: 220px;
+               padding-bottom: 150px;
+             "
+           >
+                                                                                                       <div
+                 style="
+                   background: white;
+                   border-radius: 12px;
+                   padding: 24px 20px;
+                   width: 100%;
+                   max-width: 500px;
+                   font-family: 'Poppins', sans-serif;
+                   color: #000;
+                   font-size: 14px;
+                   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+                   font-family: Poppins, sans-serif;
+                   position: relative;
+                   z-index: 1;
+                   box-sizing: border-box;
+                   min-height: fit-content;
+                 "
+               >
+              <div
+                style="
+                  color: #d63384;
+                  font-size: 11px;
+                  font-weight: 600;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 6px;
+                  text-transform: uppercase;
+                  font-family: Poppins, sans-serif;
+                "
+              >
+                Olá, Mermã!
               </div>
-              
-              <h1 style="color: white; font-size: 22px; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                Mermãs Digitais
-              </h1>
-              <p style="color: white; font-size: 14px; margin: 5px 0 0 0; font-weight: 500; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                Seu futuro digital começa aqui! ✨
-              </p>
-            </div>
-
-            <!-- Conteúdo principal -->
-            <div style="padding: 40px 30px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="color: #6C2EB5; font-size: 24px; font-weight: 700; margin-bottom: 10px;">
-                  Confirme seu email
-                </h2>
-                <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
-                  Estamos quase lá! Use o código abaixo para verificar seu email e continuar sua jornada conosco:
-                </p>
+              <div
+                style="
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: #3e1363;
+                  margin-bottom: 20px;
+                  font-family: Poppins, sans-serif;
+                "
+              >
+                Confirme seu e-mail 💜
               </div>
-
-              <!-- Card do código -->
-              <div style="background: linear-gradient(135deg, #FF4A97, #6C2EB5); padding: 3px; border-radius: 16px; margin: 30px 0;">
-                <div style="background: white; padding: 30px; text-align: center; border-radius: 13px;">
-                  <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                    Seu código de verificação
-                  </p>
-                  <div style="font-size: 36px; font-weight: 800; background: linear-gradient(135deg, #FF4A97, #6C2EB5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #FF4A97; letter-spacing: 8px; margin: 20px 0;">
-                    ${code}
-                  </div>
-                  <div style="margin-top: 20px; padding: 15px; background: rgba(255, 74, 151, 0.1); border-radius: 8px; border-left: 4px solid #FF4A97;">
-                    <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                      ⏰ <strong>Válido por 10 minutos</strong> - Use rapidinho!
-                    </p>
-                  </div>
+              <div
+                style="
+                  margin-bottom: 16px;
+                  line-height: 1.6;
+                  font-family: Poppins, sans-serif;
+                "
+              >
+                Olá! Para concluir sua inscrição no projeto Mermãs Digitais,
+                precisamos confirmar seu e-mail.
+              </div>
+                                                           <div
+                  style="
+                    text-align: center;
+                    margin: 20px 0;
+                  "
+                >
+                  <strong
+                    style="
+                      color: #3e1363;
+                      font-size: large;
+                      background: #f8f9fa;
+                      padding: 12px 20px;
+                      border-radius: 8px;
+                      letter-spacing: 2px;
+                      text-align: center;
+                      display: inline-block;
+                      box-sizing: border-box;
+                    "
+                    >${code}</strong
+                  >
                 </div>
-              </div>
-
-              <!-- Instruções -->
-              <div style="background: #f9fafb; padding: 25px; border-radius: 12px; margin: 30px 0;">
-                <h3 style="color: #6C2EB5; font-size: 18px; font-weight: 600; margin-bottom: 15px;">
-                  Como usar o código:
-                </h3>
-                <ol style="color: #6b7280; font-size: 14px; line-height: 1.8; padding-left: 20px;">
-                  <li>Volte para a página de verificação</li>
-                  <li>Digite o código de 6 dígitos acima</li>
-                  <li>Clique em "Enviar" para continuar</li>
-                </ol>
-              </div>
-
-              <!-- Call to action -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="#" style="display: inline-block; background: linear-gradient(135deg, #FF4A97, #6C2EB5); color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(255, 74, 151, 0.3); transition: all 0.3s ease;">
-                  Continuar Inscrição →
-                </a>
-              </div>
-            </div>
-
-            <!-- Footer -->
-            <div style="background: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="color: #9ca3af; font-size: 12px; margin-bottom: 10px;">
-                Se você não solicitou este código, pode ignorar este email com segurança.
-              </p>
-              <div style="margin: 15px 0;">
-                <a href="#" style="color: #FF4A97; text-decoration: none; margin: 0 10px; font-size: 14px;">Instagram</a>
-                <span style="color: #d1d5db;">•</span>
-                <a href="#" style="color: #FF4A97; text-decoration: none; margin: 0 10px; font-size: 14px;">Site</a>
-                <span style="color: #d1d5db;">•</span>
-                <a href="#" style="color: #FF4A97; text-decoration: none; margin: 0 10px; font-size: 14px;">Suporte</a>
-              </div>
-              <p style="color: #9ca3af; font-size: 12px; margin-top: 15px;">
-                © 2025 Mermãs Digitais. Construindo o futuro digital feminino.
-              </p>
+                                                           <div style="line-height: 1.6; font-family: Poppins, sans-serif">
+                  Insira este código no site para continuar sua inscrição: 
+                  <a href="${
+                    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+                  }/inscricao" 
+                     style="color: #9854cb; text-decoration: none; font-weight: 600;">
+                    ${
+                      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+                    }/inscricao
+                  </a>
+                </div>
+               
+               <!-- Botão de ação -->
+               <div style="
+                 margin: 25px 0;
+                 text-align: center;
+               ">
+                 <a href="${
+                   process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+                 }/inscricao" 
+                    style="
+                      display: inline-block;
+                      background: linear-gradient(135deg, #9854cb, #3e1363);
+                      color: white;
+                      padding: 14px 28px;
+                      text-decoration: none;
+                      border-radius: 25px;
+                      font-weight: 600;
+                      font-size: 14px;
+                      font-family: Poppins, sans-serif;
+                      box-shadow: 0 4px 15px rgba(152, 84, 203, 0.3);
+                      transition: all 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(152, 84, 203, 0.4)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(152, 84, 203, 0.3)'"
+                 >
+                   Continuar Inscrição →
+                 </a>
+               </div>
+               
+               <!-- Informação adicional -->
+               <div style="
+                 margin-top: 20px;
+                 padding: 12px;
+                 background: rgba(152, 84, 203, 0.1);
+                 border-radius: 8px;
+                 border-left: 3px solid #9854cb;
+                 font-size: 12px;
+                 color: #6b7280;
+                 font-family: Poppins, sans-serif;
+               ">
+                 ⏰ <strong>Válido por 10 minutos</strong> - Use rapidinho!
+               </div>
             </div>
           </div>
-
-          <style>
-            @keyframes float {
-              0%, 100% { transform: translateY(0px); }
-              50% { transform: translateY(-20px); }
-            }
-          </style>
         </body>
         </html>
       `,

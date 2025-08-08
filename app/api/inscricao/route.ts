@@ -62,6 +62,15 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email
     try {
+      const emailData = {
+        email: data.email,
+        nomeCompleto: data.nome,
+        nomeCurso: curso,
+        cpf: data.cpf,
+      };
+
+      console.log("Sending confirmation email with data:", emailData);
+
       const confirmationResponse = await fetch(
         `${
           process.env.NEXTAUTH_URL || "http://localhost:3000"
@@ -71,18 +80,20 @@ export async function POST(request: NextRequest) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            email: data.email,
-            nomeCompleto: data.nome,
-            nomeCurso: curso,
-            cpf: data.cpf,
-          }),
+          body: JSON.stringify(emailData),
         }
       );
 
       if (!confirmationResponse.ok) {
-        console.error("Failed to send confirmation email");
+        const errorText = await confirmationResponse.text();
+        console.error(
+          "Failed to send confirmation email:",
+          confirmationResponse.status,
+          errorText
+        );
         // Don't fail the inscription if email fails
+      } else {
+        console.log("Confirmation email sent successfully");
       }
     } catch (emailError) {
       console.error("Error sending confirmation email:", emailError);

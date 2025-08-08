@@ -13,7 +13,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log("Received confirmation email request:", body);
+    console.log("Received excedente email request:", body);
 
     const { email, nomeCompleto, nomeCurso, cpf } = body;
 
@@ -68,20 +68,20 @@ export async function POST(request: NextRequest) {
       process.env.NEXTAUTH_URL || "https://md-inscricoes.vercel.app"
     }/acompanhar?cpf=${encodeURIComponent(cpf)}`;
 
-    // Send confirmation email
+    // Send excedente email
     const mailOptions = {
       from:
         process.env.SMTP_FROM ||
         "Mermãs Digitais <noreply@mermasdigitais.com.br>",
       to: email,
-      subject: "🎉 Você foi aprovada! - Mermãs Digitais",
+      subject: "💜 Você está na lista de excedentes - Mermãs Digitais",
       html: `
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Parabéns! Você foi aprovada!</title>
+          <title>Lista de Excedentes - Mermãs Digitais</title>
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
           <link
@@ -100,24 +100,24 @@ export async function POST(request: NextRequest) {
             min-height: 100vh;
           "
         >
-                     <div
-             style="
-               background-image: url('https://yibtbjjamezyxbepdnnw.supabase.co/storage/v1/object/public/asset//email_asset.png');
-               background-size: cover;
-               background-repeat: no-repeat;
-               background-position: center;
-               width: 100vw;
-               min-height: 100vh;
-               position: relative;
-               padding: 40px;
-               box-sizing: border-box;
-               display: flex;
-               align-items: flex-start;
-               justify-content: center;
-               padding-top: 280px;
-               padding-bottom: 150px;
-             "
-           >
+          <div
+            style="
+              background-image: url('https://yibtbjjamezyxbepdnnw.supabase.co/storage/v1/object/public/asset//email_asset.png');
+              background-size: cover;
+              background-repeat: no-repeat;
+              background-position: center;
+              width: 100vw;
+              min-height: 100vh;
+              position: relative;
+              padding: 40px;
+              box-sizing: border-box;
+              display: flex;
+              align-items: flex-start;
+              justify-content: center;
+              padding-top: 280px;
+              padding-bottom: 150px;
+            "
+          >
             <div
               style="
                 background: white;
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
                   font-family: Poppins, sans-serif;
                 "
               >
-                Parabéns!
+                Olá, Mermã!
               </div>
               <div
                 style="
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
                   font-family: Poppins, sans-serif;
                 "
               >
-                Você foi aprovada 🎉
+                Você está na lista de excedentes 💜
               </div>
               <div
                 style="
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
                   font-family: Poppins, sans-serif;
                 "
               >
-                Estamos muito felizes em te contar que você foi selecionada para participar do projeto Mermãs Digitais!
+                Agradecemos muito pelo seu interesse em participar do projeto Mermãs Digitais
               </div>
               
               <div
@@ -177,34 +177,34 @@ export async function POST(request: NextRequest) {
                   font-family: Poppins, sans-serif;
                 "
               >
-                Prepare-se para mergulhar no universo da tecnologia com outras meninas incríveis. Logo mais, enviaremos mais informações sobre os primeiros encontros.
+                No momento, você está como excedente. Isso significa que, se surgirem novas vagas, poderemos te chamar para participar das atividades. Fique de olho no seu e-mail e em nossas redes sociais para novidades!
               </div>
               
-                             <!-- Botão de ação -->
-               <div style="
-                 margin: 25px 0;
-                 text-align: center;
-               ">
-                 <a href="${trackingLink}" 
-                    style="
-                      display: inline-block;
-                      background: linear-gradient(135deg, #FFCD34, #FF4A97);
-                      color: white;
-                      padding: 14px 28px;
-                      text-decoration: none;
-                      border-radius: 25px;
-                      font-weight: 600;
-                      font-size: 14px;
-                      font-family: Poppins, sans-serif;
-                      box-shadow: 0 4px 15px rgba(255, 205, 52, 0.3);
-                      transition: all 0.3s ease;
-                    "
-                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 205, 52, 0.4)'"
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(255, 205, 52, 0.3)'"
-                 >
-                   Acompanhar Inscrição →
-                 </a>
-               </div>
+              <!-- Botão de ação -->
+              <div style="
+                margin: 25px 0;
+                text-align: center;
+              ">
+                <a href="${trackingLink}" 
+                   style="
+                     display: inline-block;
+                     background: linear-gradient(135deg, #FFCD34, #FF4A97);
+                     color: white;
+                     padding: 14px 28px;
+                     text-decoration: none;
+                     border-radius: 25px;
+                     font-weight: 600;
+                     font-size: 14px;
+                     font-family: Poppins, sans-serif;
+                     box-shadow: 0 4px 15px rgba(255, 205, 52, 0.3);
+                     transition: all 0.3s ease;
+                   "
+                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255, 205, 52, 0.4)'"
+                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(255, 205, 52, 0.3)'"
+                >
+                  Acompanhar Inscrição →
+                </a>
+              </div>
               
               <!-- Informação adicional -->
               <div style="
@@ -217,26 +217,26 @@ export async function POST(request: NextRequest) {
                 color: #6b7280;
                 font-family: Poppins, sans-serif;
               ">
-                ✨ <strong>Bem-vinda à família Mermãs Digitais!</strong> - Seu futuro digital começa agora!
+                ✨ <strong>Continue acompanhando!</strong> - Novas oportunidades podem surgir a qualquer momento!
               </div>
             </div>
           </div>
         </body>
         </html>
       `,
-      text: `🎉 Você foi aprovada! - Mermãs Digitais
+      text: `💜 Você está na lista de excedentes - Mermãs Digitais
 
-Parabéns!
+Olá, Mermã!
 
-Você foi aprovada 🎉
+Você está na lista de excedentes 💜
 
-Estamos muito felizes em te contar que você foi selecionada para participar do projeto Mermãs Digitais!
+Agradecemos muito pelo seu interesse em participar do projeto Mermãs Digitais
 
-Prepare-se para mergulhar no universo da tecnologia com outras meninas incríveis. Logo mais, enviaremos mais informações sobre os primeiros encontros.
+No momento, você está como excedente. Isso significa que, se surgirem novas vagas, poderemos te chamar para participar das atividades. Fique de olho no seu e-mail e em nossas redes sociais para novidades!
 
 Acompanhe sua inscrição em: ${trackingLink}
 
-✨ Bem-vinda à família Mermãs Digitais! - Seu futuro digital começa agora!
+✨ Continue acompanhando! - Novas oportunidades podem surgir a qualquer momento!
 
 ---
 Mermãs Digitais
@@ -244,16 +244,16 @@ Construindo o futuro digital feminino`,
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Confirmation email sent successfully:", info.messageId);
+    console.log("Excedente email sent successfully:", info.messageId);
 
     // Close the transporter
     transporter.close();
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error sending confirmation email:", error);
+    console.error("Error sending excedente email:", error);
 
-    let errorMessage = "Erro ao enviar email de confirmação";
+    let errorMessage = "Erro ao enviar email de excedente";
     if (error instanceof Error) {
       if (error.message.includes("ENOTFOUND")) {
         errorMessage = "Erro de conexão com servidor SMTP";
