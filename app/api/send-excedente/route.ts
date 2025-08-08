@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Create tracking link
     const trackingLink = `${
-      process.env.NEXTAUTH_URL || "https://md-inscricoes.vercel.app"
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
     }/acompanhar?cpf=${encodeURIComponent(cpf)}`;
 
     // Send excedente email
