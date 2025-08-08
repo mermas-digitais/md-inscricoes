@@ -78,9 +78,11 @@ export function CodeInput({
             onPaste={handlePaste}
             className={cn(
               "w-12 h-12 sm:w-14 sm:h-14 text-center text-xl font-bold bg-[#F8F8F8] border-2 border-transparent rounded-2xl transition-all duration-200",
-              "focus:ring-0 focus:outline-none focus:border-[#FF4A97] focus:bg-white",
+              "focus:ring-0 focus:outline-none focus:border-[#FF4A97] focus:bg-white focus:shadow-lg",
               "font-['Poppins'] text-gray-800",
-              error && "border-red-500 bg-red-50"
+              "shadow-md hover:shadow-lg hover:bg-white hover:scale-[1.02]",
+              "border-gray-200 hover:border-[#FF4A97]",
+              error && "border-red-500 bg-red-50 shadow-red-200"
             )}
             maxLength={1}
             inputMode="numeric"
