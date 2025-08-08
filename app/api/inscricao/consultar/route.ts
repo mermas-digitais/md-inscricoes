@@ -78,9 +78,13 @@ export async function GET(request: NextRequest) {
       disponibilidade: "A definir", // Default value
       como_soube: "Não informado", // Default value
       created_at: inscricao.created_at,
+      status: inscricao.status || "confirmada", // Default para confirmada se não existir
+      // Dados do responsável
+      nome_responsavel: inscricao.nome_responsavel,
+      cpf_responsavel: inscricao.cpf_responsavel,
     };
 
-    return NextResponse.json({ inscricao: transformedInscricao });
+    return NextResponse.json(transformedInscricao);
   } catch (error) {
     console.error("Error consulting inscription:", error);
     return NextResponse.json(
