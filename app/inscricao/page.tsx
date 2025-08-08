@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { User, GraduationCap, Users, MapPin } from "lucide-react";
+import { User, GraduationCap, Users, MapPin, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { z } from "zod";
@@ -170,6 +170,8 @@ export default function InscricaoPage() {
     const [generoConfirmado, setGeneroConfirmado] = useState(false);
     const [cpfExists, setCpfExists] = useState(false);
     const [cepNaoEncontrado, setCepNaoEncontrado] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [sessionTimeLeft, setSessionTimeLeft] = useState<number>(0);
 
     // Schema dinâmico para step1 com validação de CPF
     const step1SchemaWithValidation = useMemo(
@@ -255,6 +257,114 @@ export default function InscricaoPage() {
       step4Form.setFieldValue("ano_escolar", formData.ano_escolar, false);
       step4Form.setFieldValue("escola", formData.escola, false);
     }, [formData.escolaridade, formData.ano_escolar, formData.escola]);
+
+    // Verificar sessão existente ao carregar a página
+    useEffect(() => {
+      const checkExistingSession = () => {
+        const sessionData = localStorage.getItem("inscricaoSession");
+        if (sessionData) {
+          try {
+            const { timestamp } = JSON.parse(sessionData);
+            const now = Date.now();
+            const sessionTimeout = 15 * 60 * 1000; // 15 minutos em millisegundos
+
+            // Verificar se a sessão ainda é válida
+            if (now - timestamp < sessionTimeout) {
+              setIsAuthenticated(true);
+              return true;
+            } else {
+              // Sessão expirada, limpar localStorage
+              localStorage.removeItem("inscricaoSession");
+            }
+          } catch (error) {
+            localStorage.removeItem("inscricaoSession");
+          }
+        }
+        return false;
+      };
+
+      checkExistingSession();
+    }, []);
+
+    // Atualizar tempo restante da sessão
+    useEffect(() => {
+      if (isAuthenticated) {
+        const updateSessionTime = () => {
+          const sessionData = localStorage.getItem("inscricaoSession");
+          if (sessionData) {
+            try {
+              const { timestamp } = JSON.parse(sessionData);
+              const now = Date.now();
+              const sessionTimeout = 15 * 60 * 1000; // 15 minutos
+              const timeLeft = Math.max(0, sessionTimeout - (now - timestamp));
+
+              if (timeLeft <= 0) {
+                // Sessão expirada
+                handleSessionExpired();
+              } else {
+                setSessionTimeLeft(timeLeft);
+
+                // Aviso quando restar 3 minutos
+                if (timeLeft === 3 * 60 * 1000) {
+                  toast({
+                    title: "Sessão expirando",
+                    description:
+                      "Sua sessão expira em 3 minutos. Finalize sua inscrição rapidamente.",
+                    variant: "destructive",
+                  });
+                }
+              }
+            } catch (error) {
+              handleSessionExpired();
+            }
+          }
+        };
+
+        // Atualizar imediatamente
+        updateSessionTime();
+
+        // Atualizar a cada segundo
+        const interval = setInterval(updateSessionTime, 1000);
+
+        return () => clearInterval(interval);
+      }
+    }, [isAuthenticated]);
+
+    const handleSessionExpired = () => {
+      localStorage.removeItem("inscricaoSession");
+      setIsAuthenticated(false);
+      setCurrentStep(1);
+      setFormData({
+        email: searchParams.get("email") || "",
+        nome: "",
+        cpf: "",
+        data_nascimento: "",
+        cep: "",
+        logradouro: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+        nome_responsavel: "",
+        telefone_whatsapp: "",
+        escolaridade: "",
+        ano_escolar: "",
+        escola: "",
+      });
+      toast({
+        title: "Sessão expirada",
+        description:
+          "Sua sessão expirou. Por favor, preencha o formulário novamente.",
+        variant: "destructive",
+      });
+    };
+
+    const formatTimeLeft = (milliseconds: number) => {
+      const minutes = Math.floor(milliseconds / 60000);
+      const seconds = Math.floor((milliseconds % 60000) / 1000);
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    };
 
     // Revalidar quando o schema mudar (cpfExists)
     useEffect(() => {
@@ -364,6 +474,15 @@ export default function InscricaoPage() {
 
       setFormData((prev) => ({ ...prev, [field]: value }));
 
+      // Criar sessão quando o usuário começar a preencher o formulário
+      if (!isAuthenticated) {
+        const sessionData = {
+          timestamp: Date.now(),
+        };
+        localStorage.setItem("inscricaoSession", JSON.stringify(sessionData));
+        setIsAuthenticated(true);
+      }
+
       // Atualizar os forms Zod correspondentes (marcando como touched)
       if (["nome", "cpf", "data_nascimento"].includes(field)) {
         step1Form.setFieldValue(
@@ -447,6 +566,8 @@ export default function InscricaoPage() {
 
         if (response.ok) {
           const { curso } = await response.json();
+          // Limpar sessão quando a inscrição for finalizada com sucesso
+          localStorage.removeItem("inscricaoSession");
           router.push(
             `/confirmacao?curso=${encodeURIComponent(
               curso
@@ -529,6 +650,14 @@ export default function InscricaoPage() {
                     <p className="text-gray-600 mt-2 text-sm font-poppins">
                       PASSO {currentStep} DE 5
                     </p>
+                    {isAuthenticated && sessionTimeLeft > 0 && (
+                      <div className="mt-2 flex items-center justify-center gap-2">
+                        <Clock className="w-4 h-4 text-[#FF4A97]" />
+                        <span className="text-xs text-[#FF4A97] font-medium font-poppins">
+                          Sessão: {formatTimeLeft(sessionTimeLeft)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Formulário */}
