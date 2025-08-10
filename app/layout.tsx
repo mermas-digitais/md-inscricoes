@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { ConditionalLayout } from "@/components/conditional-layout";
+import { Header } from "@/components/header";
 
 const inter = Inter({ subsets: ["latin"] });
 const poppins = Poppins({
@@ -52,7 +52,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body className={`${inter.className} ${poppins.variable}`}>
-        <ConditionalLayout>{children}</ConditionalLayout>
+        <Header />
+        <main className="pt-16">{children}</main>
         <Toaster />
       </body>
     </html>
