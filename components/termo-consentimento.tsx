@@ -42,12 +42,18 @@ export function TermoConsentimento({
           body {
             font-family: 'Poppins', sans-serif;
             line-height: 2.0;
-            max-width: 800px;
+            max-width: 100%;
             margin: 0 auto;
-            padding: 40px;
+            padding: 20px;
             color: #000;
             background: white;
             font-size: 14px;
+          }
+          @media (min-width: 768px) {
+            body {
+              max-width: 800px;
+              padding: 40px;
+            }
           }
           .header-info {
             text-align: center;
@@ -76,11 +82,14 @@ export function TermoConsentimento({
             border-bottom: 1px solid #000;
             background: transparent;
             padding: 2px 5px;
-            min-width: 200px;
+            min-width: 150px;
+            max-width: 100%;
             display: inline-block;
             text-align: center;
             font-family: 'Poppins', sans-serif;
             font-size: 14px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
           }
           .field:focus {
             outline: none;
@@ -93,11 +102,14 @@ export function TermoConsentimento({
             border-bottom: 1px solid #000;
             background: transparent;
             padding: 2px 5px;
-            min-width: 140px;
+            min-width: 120px;
+            max-width: 100%;
             display: inline-block;
             text-align: center;
             font-family: 'Poppins', sans-serif;
             font-size: 14px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
           }
           .field-small:focus {
             outline: none;
@@ -194,7 +206,7 @@ export function TermoConsentimento({
         </div>
         
         <div class="content">
-          Eu, <input type="text" class="field" value="${nomeResponsavel}" placeholder="Nome completo do responsável" style="width: 45%; min-width: 45%; display: inline-block; margin: 0 5px;">, inscrito(a) no CPF <input type="text" class="field-small" value="${cpfResponsavel}" placeholder="000.000.000-00" maxlength="14">, responsável legal pela participante <input type="text" class="field" value="${nomeParticipante}" readonly style="background: #f9f9f9; width: 45%; min-width: 45%; display: inline-block; margin: 0 5px;">,<br>
+          Eu, <input type="text" class="field" value="${nomeResponsavel}" placeholder="Nome completo do responsável" style="width: 100%; min-width: 200px; max-width: 100%; display: block; margin: 10px 0;">, inscrito(a) no CPF <input type="text" class="field-small" value="${cpfResponsavel}" placeholder="000.000.000-00" maxlength="14" style="width: 100%; min-width: 150px; max-width: 100%; display: block; margin: 10px 0;">, responsável legal pela participante <input type="text" class="field" value="${nomeParticipante}" readonly style="background: #f9f9f9; width: 100%; min-width: 200px; max-width: 100%; display: block; margin: 10px 0;">,<br>
           declaro que estou ciente e autorizo a participação de minha filha/menor sob minha guarda no projeto Mermãs Digitais, que oferece oficinas e atividades educacionais na área de tecnologia e robótica.
         </div>
         
@@ -295,41 +307,45 @@ export function TermoConsentimento({
   };
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
-      <div className="flex items-start gap-4">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 sm:p-4 md:p-6 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
         <div className="flex-shrink-0">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <Download className="w-6 h-6 text-blue-600" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+            <Download className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
           </div>
         </div>
-        <div className="flex-1">
-          <h4 className="font-semibold text-blue-900 mb-2 text-lg">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-blue-900 mb-2 text-base sm:text-lg">
             📄 Termo de Consentimento
           </h4>
-          <p className="text-sm text-blue-700 mb-4 leading-relaxed">
+          <p className="text-xs sm:text-sm text-blue-700 mb-3 sm:mb-4 leading-relaxed">
             {nomeResponsavel ? (
               <>
                 Termo com campos editáveis no navegador. Dados de{" "}
-                <strong>{nomeResponsavel}</strong> e da aluna{" "}
-                <strong>{nomeParticipante}</strong> já preenchidos. Você pode
-                editar diretamente no documento, depois imprimir, assinar e
-                trazer no primeiro dia de aula.
+                <strong className="break-words">{nomeResponsavel}</strong> e da
+                aluna{" "}
+                <strong className="break-words">{nomeParticipante}</strong> já
+                preenchidos. Você pode editar diretamente no documento, depois
+                imprimir, assinar e trazer no primeiro dia de aula.
               </>
             ) : (
               <>
                 Termo com campos editáveis no navegador. Nome da aluna{" "}
-                <strong>{nomeParticipante}</strong> já preenchido. Preencha os
-                dados do responsável diretamente no documento, imprima, assine e
-                trazer no primeiro dia de aula.
+                <strong className="break-words">{nomeParticipante}</strong> já
+                preenchido. Preencha os dados do responsável diretamente no
+                documento, imprima, assine e trazer no primeiro dia de aula.
               </>
             )}
           </p>
           <Button
             onClick={generatePDF}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base py-2 sm:py-2.5 px-3 sm:px-4"
           >
             <Download className="w-4 h-4 mr-2" />
-            Abrir Termo de Consentimento
+            <span className="hidden sm:inline">
+              Abrir Termo de Consentimento
+            </span>
+            <span className="sm:hidden">Abrir Termo</span>
           </Button>
         </div>
       </div>
