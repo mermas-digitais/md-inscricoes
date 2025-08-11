@@ -33,7 +33,11 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${inter.className} ${poppins.variable}`}>
+    <html
+      lang="pt-BR"
+      className={`${inter.className} ${poppins.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <meta
           name="viewport"
@@ -51,7 +55,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           crossOrigin="anonymous"
         />
       </head>
-      <body className={`${inter.className} ${poppins.variable}`}>
+      <body
+        className={`${inter.className} ${poppins.variable}`}
+        suppressHydrationWarning
+      >
         <ConditionalLayout>{children}</ConditionalLayout>
         <Toaster />
       </body>

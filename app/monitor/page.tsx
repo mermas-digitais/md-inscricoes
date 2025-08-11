@@ -16,6 +16,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CodeInput } from "@/components/ui/code-input";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   Search,
   Eye,
   Upload,
@@ -33,8 +40,18 @@ import {
   Calendar,
   Clock,
   Wifi,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  UserPlus,
+  Shield,
+  ToggleLeft,
+  ToggleRight,
+  Menu,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { ModalNovaInscricao } from "@/components/ui/modal-nova-inscricao";
+import { ModalNovoMonitor } from "@/components/ui/modal-novo-monitor";
 
 interface Inscricao {
   id: string;
@@ -53,6 +70,7 @@ interface Inscricao {
   telefone_whatsapp: string;
   escolaridade: string;
   ano_escolar: string;
+  escola: string;
   status: "INSCRITA" | "MATRICULADA" | "CANCELADA" | "EXCEDENTE";
   curso: string;
   created_at: string;
@@ -69,6 +87,12 @@ export default function MonitorPage() {
   const [step, setStep] = useState<"email" | "otp" | "dashboard">("email");
   const [email, setEmail] = useState(monitorEmail || "");
   const [monitorName, setMonitorName] = useState("");
+  const [monitorRole, setMonitorRole] = useState<"MONITOR" | "ADM">("MONITOR");
+  const [viewMode, setViewMode] = useState<"inscricoes" | "monitores">(
+    "inscricoes"
+  );
+  const [monitores, setMonitores] = useState<any[]>([]);
+  const [filteredMonitores, setFilteredMonitores] = useState<any[]>([]);
   const [accessCode, setAccessCode] = useState("");
   const [codeDigits, setCodeDigits] = useState<string[]>([
     "",
@@ -83,9 +107,16 @@ export default function MonitorPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionTimeLeft, setSessionTimeLeft] = useState<number>(0);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingInscricoes, setIsLoadingInscricoes] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Estados para controlar os modais
+  const [isModalNovaInscricaoOpen, setIsModalNovaInscricaoOpen] =
+    useState(false);
+  const [isModalNovoMonitorOpen, setIsModalNovoMonitorOpen] = useState(false);
 
   // Ref para scroll automático para a lista
   const inscricoesListRef = useRef<HTMLDivElement>(null);
@@ -95,6 +126,12 @@ export default function MonitorPage() {
 
   // Verificar sessão existente ao carregar a página
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     const checkExistingSession = () => {
       const sessionData = localStorage.getItem("monitorSession");
       if (sessionData) {
@@ -102,6 +139,7 @@ export default function MonitorPage() {
           const {
             email: sessionEmail,
             nome: sessionNome,
+            role: sessionRole,
             timestamp,
           } = JSON.parse(sessionData);
           const now = Date.now();
@@ -112,6 +150,7 @@ export default function MonitorPage() {
             setIsAuthenticated(true);
             setEmail(sessionEmail);
             setMonitorName(sessionNome || "");
+            setMonitorRole(sessionRole || "MONITOR");
             setStep("dashboard");
             return true;
           } else {
@@ -129,42 +168,41 @@ export default function MonitorPage() {
     if (!monitorEmail) {
       checkExistingSession();
     }
-  }, [monitorEmail]);
+  }, [isClient, monitorEmail]);
 
   // Se já tem email na URL, verificar se já está autenticado
   useEffect(() => {
-    if (monitorEmail) {
-      setEmail(monitorEmail);
-      // Verificar se há sessão válida
-      const sessionData = localStorage.getItem("monitorSession");
-      if (sessionData) {
-        try {
-          const {
-            email: sessionEmail,
-            nome: sessionNome,
-            timestamp,
-          } = JSON.parse(sessionData);
-          const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000;
+    if (!isClient || !monitorEmail) return;
 
-          if (
-            now - timestamp < sessionTimeout &&
-            sessionEmail === monitorEmail
-          ) {
-            setIsAuthenticated(true);
-            setMonitorName(sessionNome || "");
-            setStep("dashboard");
-          } else {
-            setStep("otp");
-          }
-        } catch (error) {
+    setEmail(monitorEmail);
+    // Verificar se há sessão válida
+    const sessionData = localStorage.getItem("monitorSession");
+    if (sessionData) {
+      try {
+        const {
+          email: sessionEmail,
+          nome: sessionNome,
+          role: sessionRole,
+          timestamp,
+        } = JSON.parse(sessionData);
+        const now = Date.now();
+        const sessionTimeout = 30 * 60 * 1000;
+
+        if (now - timestamp < sessionTimeout && sessionEmail === monitorEmail) {
+          setIsAuthenticated(true);
+          setMonitorName(sessionNome || "");
+          setMonitorRole(sessionRole || "MONITOR");
+          setStep("dashboard");
+        } else {
           setStep("otp");
         }
-      } else {
+      } catch (error) {
         setStep("otp");
       }
+    } else {
+      setStep("otp");
     }
-  }, [monitorEmail]);
+  }, [isClient, monitorEmail]);
 
   // Carregar inscrições quando entrar no dashboard
   useEffect(() => {
@@ -197,7 +235,8 @@ export default function MonitorPage() {
                   title: "Sessão expirando",
                   description:
                     "Sua sessão expira em 5 minutos. Faça login novamente se necessário.",
-                  variant: "destructive",
+                  variant: "warning",
+                  duration: 10000, // 10 segundos para aviso importante
                 });
               }
             }
@@ -223,6 +262,21 @@ export default function MonitorPage() {
     };
   }, []);
 
+  // Funções para lidar com o sucesso dos modais
+  const handleNovaInscricaoSuccess = () => {
+    // Recarregar as inscrições se estivermos na view de inscrições
+    if (viewMode === "inscricoes") {
+      window.location.reload(); // Método simples para recarregar os dados
+    }
+  };
+
+  const handleNovoMonitorSuccess = () => {
+    // Recarregar os monitores se estivermos na view de monitores
+    if (viewMode === "monitores") {
+      window.location.reload(); // Método simples para recarregar os dados
+    }
+  };
+
   const handleEmailVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -239,11 +293,15 @@ export default function MonitorPage() {
         if (data.nome) {
           setMonitorName(data.nome);
         }
+        if (data.role) {
+          setMonitorRole(data.role);
+        }
         // Redirecionar para a próxima página com o email na URL
         router.push(`/monitor?email=${encodeURIComponent(email)}`);
         toast({
           title: "Código enviado!",
           description: "Verifique seu email e digite o código de verificação.",
+          variant: "success",
         });
       } else {
         const data = await response.json();
@@ -287,11 +345,15 @@ export default function MonitorPage() {
         if (data.nome) {
           setMonitorName(data.nome);
         }
+        if (data.role) {
+          setMonitorRole(data.role);
+        }
 
         // Salvar sessão no localStorage com timestamp e nome
         const sessionData = {
           email: email,
           nome: data.nome || monitorName,
+          role: data.role || "MONITOR",
           timestamp: Date.now(),
         };
         localStorage.setItem("monitorSession", JSON.stringify(sessionData));
@@ -299,6 +361,16 @@ export default function MonitorPage() {
         setIsAuthenticated(true);
         setStep("dashboard");
         loadInscricoes();
+
+        // Toast de boas-vindas
+        setTimeout(() => {
+          toast({
+            title: `Bem-vindo(a), ${data.nome || "Monitor"}!`,
+            description: "Acesso autorizado ao painel de gerenciamento.",
+            variant: "success",
+          });
+        }, 500);
+
         // Manter o email na URL quando acessar o dashboard
         router.push(`/monitor?email=${encodeURIComponent(email)}`);
       } else {
@@ -346,6 +418,26 @@ export default function MonitorPage() {
       setIsLoadingInscricoes(false);
     }
   };
+
+  // Carregar dados quando a visualização mudar
+  useEffect(() => {
+    if (isAuthenticated && step === "dashboard") {
+      if (viewMode === "inscricoes") {
+        loadInscricoes();
+      } else if (viewMode === "monitores") {
+        loadMonitores();
+      }
+    }
+  }, [isAuthenticated, step, viewMode]);
+
+  // Limpar busca quando mudar o modo de visualização
+  useEffect(() => {
+    if (searchTerm) {
+      setSearchTerm("");
+      setFilteredInscricoes(inscricoes);
+      setFilteredMonitores(monitores);
+    }
+  }, [viewMode]);
 
   // Email verification step
   if (step === "email") {
@@ -413,6 +505,8 @@ export default function MonitorPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        autoComplete="email"
+                        suppressHydrationWarning
                         className="w-full rounded-[65px] px-4 sm:px-6 py-3 sm:py-4 bg-[#F8F8F8] text-base text-gray-800 border-2 border-transparent transition-all duration-200 focus:ring-0 focus:outline-none focus:border-[#FF4A97] focus:bg-white font-poppins disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] sm:min-h-[56px]"
                       />
                     </div>
@@ -607,70 +701,171 @@ export default function MonitorPage() {
 
     if (!term.trim()) {
       setFilteredInscricoes(inscricoes);
+      setFilteredMonitores(monitores);
       return;
     }
 
     const normalizedTerm = normalizeText(term);
-    const normalizedCPFTerm = normalizeCPF(term);
-    const normalizedPhoneTerm = normalizePhone(term);
 
-    const filtered = inscricoes.filter((inscricao) => {
-      // Busca por nome (flexível - contém o termo)
-      const normalizedName = normalizeText(inscricao.nome);
-      const nameMatch = normalizedName.includes(normalizedTerm);
+    // Se estiver no modo monitores, filtrar monitores
+    if (viewMode === "monitores") {
+      // Função para calcular o score de relevância para nomes de monitores
+      const getNameScore = (name: string, searchTerm: string): number => {
+        const normalizedName = normalizeText(name);
+        const words = normalizedName.split(" ");
 
-      // Busca por email (flexível - contém o termo)
-      const normalizedEmail = normalizeText(inscricao.email);
-      const emailMatch = normalizedEmail.includes(normalizedTerm);
+        // Score 1000: Correspondência exata no início do nome completo
+        if (normalizedName.startsWith(searchTerm)) {
+          return 1000;
+        }
 
-      // Busca por CPF (sem pontuação)
-      const normalizedCPF = normalizeCPF(inscricao.cpf);
-      const cpfMatch =
-        normalizedCPFTerm.length >= 3 &&
-        normalizedCPF.includes(normalizedCPFTerm);
+        // Score 500: Correspondência exata no início de qualquer palavra
+        for (const word of words) {
+          if (word.startsWith(searchTerm)) {
+            return 500;
+          }
+        }
 
-      // Busca por telefone (sem pontuação)
-      const normalizedPhone = normalizePhone(inscricao.telefone_whatsapp || "");
-      const phoneMatch =
-        normalizedPhoneTerm.length >= 4 &&
-        normalizedPhone.includes(normalizedPhoneTerm);
+        // Score 100: Correspondência parcial em qualquer lugar
+        if (normalizedName.includes(searchTerm)) {
+          return 100;
+        }
 
-      // Busca por nome do responsável
-      const normalizedResponsavel = normalizeText(
-        inscricao.nome_responsavel || ""
-      );
-      const responsavelMatch = normalizedResponsavel.includes(normalizedTerm);
+        return 0;
+      };
 
-      // Busca por escola/escolaridade
-      const normalizedEscola = normalizeText(inscricao.escolaridade || "");
-      const escolaMatch = normalizedEscola.includes(normalizedTerm);
+      const filteredMonitors = monitores
+        .filter((monitor) => {
+          // Busca por nome (com score)
+          const nameScore = getNameScore(monitor.nome, normalizedTerm);
+          const nameMatch = nameScore > 0;
 
-      // Busca por ano escolar
-      const normalizedAno = normalizeText(inscricao.ano_escolar || "");
-      const anoMatch = normalizedAno.includes(normalizedTerm);
+          // Busca por email
+          const normalizedEmail = normalizeText(monitor.email);
+          const emailMatch = normalizedEmail.includes(normalizedTerm);
 
-      // Busca por curso
-      const normalizedCurso = normalizeText(inscricao.curso || "");
-      const cursoMatch = normalizedCurso.includes(normalizedTerm);
+          // Busca por role
+          const normalizedRole = normalizeText(monitor.role || "");
+          const roleMatch = normalizedRole.includes(normalizedTerm);
 
-      // Busca por status
-      const normalizedStatus = normalizeText(inscricao.status || "");
-      const statusMatch = normalizedStatus.includes(normalizedTerm);
+          // Adicionar score ao monitor para ordenação posterior
+          (monitor as any)._searchScore = nameScore;
 
-      return (
-        nameMatch ||
-        emailMatch ||
-        cpfMatch ||
-        phoneMatch ||
-        responsavelMatch ||
-        escolaMatch ||
-        anoMatch ||
-        cursoMatch ||
-        statusMatch
-      );
-    });
+          return nameMatch || emailMatch || roleMatch;
+        })
+        .sort((a, b) => {
+          // Ordenar por score de nome (maior score primeiro)
+          const scoreA = (a as any)._searchScore || 0;
+          const scoreB = (b as any)._searchScore || 0;
 
-    setFilteredInscricoes(filtered);
+          if (scoreA !== scoreB) {
+            return scoreB - scoreA; // Ordem decrescente de score
+          }
+
+          // Se scores iguais, ordenar alfabeticamente por nome
+          return a.nome.localeCompare(b.nome);
+        });
+
+      setFilteredMonitores(filteredMonitors);
+    } else {
+      // Se estiver no modo inscrições, filtrar inscrições (código existente)
+      const normalizedCPFTerm = normalizeCPF(term);
+      const normalizedPhoneTerm = normalizePhone(term);
+
+      // Função para calcular o score de relevância para nomes
+      const getNameScore = (name: string, searchTerm: string): number => {
+        const normalizedName = normalizeText(name);
+        const words = normalizedName.split(" ");
+
+        // Score 1000: Correspondência exata no início do nome completo
+        if (normalizedName.startsWith(searchTerm)) {
+          return 1000;
+        }
+
+        // Score 500: Correspondência exata no início de qualquer palavra
+        for (const word of words) {
+          if (word.startsWith(searchTerm)) {
+            return 500;
+          }
+        }
+
+        // Score 100: Correspondência parcial em qualquer lugar
+        if (normalizedName.includes(searchTerm)) {
+          return 100;
+        }
+
+        return 0;
+      };
+
+      const filtered = inscricoes
+        .filter((inscricao) => {
+          // Busca por nome (com score)
+          const nameScore = getNameScore(inscricao.nome, normalizedTerm);
+          const nameMatch = nameScore > 0;
+
+          // Busca por email (flexível - contém o termo)
+          const normalizedEmail = normalizeText(inscricao.email);
+          const emailMatch = normalizedEmail.includes(normalizedTerm);
+
+          // Busca por CPF (sem pontuação)
+          const normalizedCPF = normalizeCPF(inscricao.cpf);
+          const cpfMatch =
+            normalizedCPFTerm.length >= 3 &&
+            normalizedCPF.includes(normalizedCPFTerm);
+
+          // Busca por telefone (sem pontuação)
+          const normalizedPhone = normalizePhone(
+            inscricao.telefone_whatsapp || ""
+          );
+          const phoneMatch =
+            normalizedPhoneTerm.length >= 4 &&
+            normalizedPhone.includes(normalizedPhoneTerm);
+
+          // Busca por escola/escolaridade
+          const normalizedEscola = normalizeText(inscricao.escolaridade || "");
+          const escolaMatch = normalizedEscola.includes(normalizedTerm);
+
+          // Busca por ano escolar
+          const normalizedAno = normalizeText(inscricao.ano_escolar || "");
+          const anoMatch = normalizedAno.includes(normalizedTerm);
+
+          // Busca por curso
+          const normalizedCurso = normalizeText(inscricao.curso || "");
+          const cursoMatch = normalizedCurso.includes(normalizedTerm);
+
+          // Busca por status
+          const normalizedStatus = normalizeText(inscricao.status || "");
+          const statusMatch = normalizedStatus.includes(normalizedTerm);
+
+          // Adicionar score à inscrição para ordenação posterior
+          (inscricao as any)._searchScore = nameScore;
+
+          return (
+            nameMatch ||
+            emailMatch ||
+            cpfMatch ||
+            phoneMatch ||
+            escolaMatch ||
+            anoMatch ||
+            cursoMatch ||
+            statusMatch
+          );
+        })
+        .sort((a, b) => {
+          // Ordenar por score de nome (maior score primeiro)
+          const scoreA = (a as any)._searchScore || 0;
+          const scoreB = (b as any)._searchScore || 0;
+
+          if (scoreA !== scoreB) {
+            return scoreB - scoreA; // Ordem decrescente de score
+          }
+
+          // Se scores iguais, ordenar alfabeticamente por nome
+          return a.nome.localeCompare(b.nome);
+        });
+
+      setFilteredInscricoes(filtered);
+    }
 
     // Scroll automático para a lista quando há busca - com debounce
     if (term.trim() && inscricoesListRef.current) {
@@ -712,6 +907,7 @@ export default function MonitorPage() {
         toast({
           title: "Status atualizado",
           description: `Status alterado para ${newStatus}`,
+          variant: "success",
         });
       } else {
         toast({
@@ -740,6 +936,7 @@ export default function MonitorPage() {
     toast({
       title: "Logout realizado",
       description: "Sessão encerrada com sucesso.",
+      variant: "info",
     });
   };
 
@@ -826,37 +1023,141 @@ export default function MonitorPage() {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  // Função para alternar expansão dos cards
+  const toggleCardExpansion = (inscricaoId: string) => {
+    setExpandedCards((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(inscricaoId)) {
+        newSet.delete(inscricaoId);
+      } else {
+        newSet.add(inscricaoId);
+      }
+      return newSet;
+    });
+  };
+
+  // Função para carregar monitores
+  const loadMonitores = async () => {
+    try {
+      const response = await fetch("/api/monitor/monitores");
+      if (response.ok) {
+        const data = await response.json();
+        setMonitores(data);
+        setFilteredMonitores(data);
+      } else {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar lista de monitores",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading monitores:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar monitores",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Componente de Shimmer Effect para Loading
   const InscricaoShimmer = () => (
     <div className="p-4">
-      <div className="flex items-center gap-4">
-        {/* Avatar shimmer */}
-        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer flex-shrink-0"></div>
+      <div className="space-y-3">
+        {/* Linha 1: Avatar + Nome + Status + Botão expansão */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1">
+            {/* Avatar shimmer */}
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer flex-shrink-0 shadow-md"></div>
 
-        {/* Conteúdo shimmer */}
-        <div className="flex-1 space-y-3">
-          {/* Nome e badge */}
-          <div className="flex items-center gap-3">
-            <div className="h-5 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-48"></div>
+            {/* Nome */}
+            <div className="flex-1">
+              <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-48"></div>
+            </div>
+
+            {/* Status */}
             <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-20"></div>
           </div>
 
-          {/* Informações */}
-          <div className="flex flex-wrap gap-4">
-            <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-20"></div>
-            <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-28"></div>
-            <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-36"></div>
-            <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-24"></div>
-          </div>
+          {/* Botão expansão */}
+          <div className="w-8 h-8 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full ml-2 flex-shrink-0"></div>
         </div>
 
-        {/* Botão shimmer */}
-        <div className="h-8 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded px-4 w-28"></div>
+        {/* Linha 2: Curso + Data */}
+        <div className="flex items-center gap-3">
+          <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-md w-24"></div>
+          <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-20"></div>
+        </div>
       </div>
     </div>
   );
 
-  // Componente de Shimmer Effect para Estatísticas
+  // Componente para exibir monitores
+  const MonitorCard = ({ monitor }: { monitor: any }) => {
+    const getInitials = (name: string) => {
+      const names = name.trim().split(" ");
+      const firstName = names[0]?.charAt(0)?.toUpperCase() || "";
+      const lastName = names[1]?.charAt(0)?.toUpperCase() || "";
+      return firstName + lastName;
+    };
+
+    const getRoleBadge = (role: string) => {
+      return role === "ADM" ? (
+        <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 px-3 py-1 font-medium flex items-center gap-1">
+          <Shield className="w-3 h-3" />
+          ADM
+        </Badge>
+      ) : (
+        <Badge className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300 px-3 py-1 font-medium flex items-center gap-1">
+          <Users className="w-3 h-3" />
+          Monitor
+        </Badge>
+      );
+    };
+
+    return (
+      <div className="p-4 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-blue-300 hover:shadow-sm">
+        <div className="space-y-3">
+          {/* Linha 1: Avatar + Nome + Role */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Avatar */}
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md bg-gradient-to-br from-blue-100 to-purple-100 border-2 border-blue-200">
+                <span className="font-bold text-sm text-blue-700">
+                  {getInitials(monitor.nome)}
+                </span>
+              </div>
+
+              {/* Nome */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate text-base">
+                  {monitor.nome}
+                </h3>
+              </div>
+
+              {/* Role */}
+              <div className="flex-shrink-0">{getRoleBadge(monitor.role)}</div>
+            </div>
+          </div>
+
+          {/* Linha 2: Email + Data de criação */}
+          <div className="flex items-center gap-3 text-sm">
+            <span className="flex items-center gap-1 text-gray-600">
+              <Mail className="w-3 h-3" />
+              <span>{monitor.email}</span>
+            </span>
+            <span className="flex items-center gap-1 text-gray-500">
+              <Calendar className="w-3 h-3" />
+              <span>
+                {new Date(monitor.created_at).toLocaleDateString("pt-BR")}
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }; // Componente de Shimmer Effect para Estatísticas
   const StatsShimmer = () => (
     <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
       {Array.from({ length: 5 }).map((_, index) => (
@@ -875,41 +1176,51 @@ export default function MonitorPage() {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
       {/* Header Principal */}
       <div className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
             {/* Logo e Info do Monitor */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <img
                   src="/assets/images/md_logo.svg"
                   alt="Mermãs Digitais"
-                  className="h-12 w-auto object-contain"
+                  className="h-10 w-auto object-contain"
                 />
-                <div className="border-l border-gray-300 pl-4">
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                <div className="border-l border-gray-300 pl-3">
+                  <h1 className="text-lg font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
                     Painel do Monitor
                   </h1>
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <div className="text-xs text-gray-600 flex items-center gap-2">
                     <Users className="w-3 h-3" />
                     <span className="font-medium text-gray-800">
                       {monitorName || email}
                     </span>
-                  </p>
+                    {monitorRole === "ADM" && (
+                      <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 px-1.5 py-0.5 text-xs font-medium">
+                        <Shield className="w-2.5 h-2.5 mr-1" />
+                        ADM
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Barra de busca e controles */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-              {/* Barra de busca melhorada */}
-              <div className="relative w-full sm:w-96">
+            {/* Controles - Desktop e Mobile */}
+            <div className="flex items-center gap-4 w-full lg:w-auto">
+              {/* Barra de busca */}
+              <div className="relative flex-1 lg:w-72">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
-                  placeholder="Buscar por nome, email, CPF, telefone, responsável..."
+                  placeholder={
+                    viewMode === "monitores"
+                      ? "Buscar por nome, email ou role..."
+                      : "Buscar por nome, email, CPF..."
+                  }
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   style={{ fontSize: "16px" }} // Previne zoom no iOS
-                  className="pl-12 pr-4 py-3 bg-gray-50 border-gray-200 rounded-xl focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all duration-200 text-base"
+                  className="pl-12 pr-4 py-2.5 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all duration-200 text-sm"
                 />
                 {searchTerm && (
                   <button
@@ -921,436 +1232,828 @@ export default function MonitorPage() {
                 )}
               </div>
 
-              {/* Status da sessão e logout */}
-              <div className="flex items-center gap-3">
-                {/* Indicador de sessão */}
-                {isAuthenticated && (
-                  <div className="flex items-center gap-2 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
-                    <div className="relative">
-                      <Wifi className="w-4 h-4 text-green-600" />
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    </div>
-                    <div className="text-sm">
-                      <span
-                        className={
-                          sessionTimeLeft < 5 * 60 * 1000
-                            ? "text-red-600 font-semibold"
-                            : "text-green-700 font-medium"
-                        }
+              {/* Menu Desktop - visível apenas em telas grandes */}
+              <div className="hidden lg:flex items-center gap-3">
+                {/* Toggle de visualização */}
+                <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 shadow-sm">
+                  <Button
+                    variant={viewMode === "inscricoes" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("inscricoes")}
+                    className={`px-3 py-2 rounded-md text-xs font-semibold transition-all duration-300 ${
+                      viewMode === "inscricoes"
+                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md hover:shadow-lg hover:shadow-pink-200 hover:scale-105"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white hover:shadow-sm"
+                    }`}
+                  >
+                    <GraduationCap className="w-3 h-3 mr-1.5" />
+                    Alunas
+                  </Button>
+                  <Button
+                    variant={viewMode === "monitores" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("monitores")}
+                    className={`px-3 py-2 rounded-md text-xs font-semibold transition-all duration-300 ${
+                      viewMode === "monitores"
+                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md hover:shadow-lg hover:shadow-pink-200 hover:scale-105"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white hover:shadow-sm"
+                    }`}
+                  >
+                    <Shield className="w-3 h-3 mr-1.5" />
+                    Monitores
+                  </Button>
+                </div>
+
+                {/* Grupo de ações e sessão */}
+                <div className="flex items-center gap-2">
+                  {/* Botões de ação para ADMs */}
+                  {monitorRole === "ADM" && (
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        onClick={() => setIsModalNovaInscricaoOpen(true)}
+                        className="bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-200 hover:scale-105 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 shadow-md border-0"
                       >
-                        <Clock className="w-3 h-3 inline mr-1" />
+                        <Plus className="w-3 h-3 mr-1.5" />
+                        Novo
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsModalNovoMonitorOpen(true)}
+                        className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 hover:shadow-lg hover:shadow-blue-200 hover:scale-105 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 shadow-md border-0"
+                      >
+                        <UserPlus className="w-3 h-3 mr-1.5" />
+                        Monitor
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Indicador de sessão - mais compacto */}
+                  {isAuthenticated && (
+                    <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-2 rounded-lg shadow-sm hover:bg-green-100 hover:shadow-md transition-all duration-300">
+                      <div className="relative">
+                        <Wifi className="w-3 h-3 text-green-600" />
+                        <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold ${
+                          sessionTimeLeft < 5 * 60 * 1000
+                            ? "text-red-600"
+                            : "text-green-700"
+                        }`}
+                      >
                         {formatTimeLeft(sessionTimeLeft)}
                       </span>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Botão de logout */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 border-pink-200 hover:border-pink-300 transition-all duration-200 px-4 py-2"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sair
-                </Button>
+                  {/* Botão de logout - mais compacto */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="text-pink-600 hover:text-white hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 border-pink-200 hover:border-pink-400 hover:shadow-lg hover:shadow-pink-200 hover:scale-105 transition-all duration-300 px-3 py-2 text-xs font-semibold shadow-sm"
+                  >
+                    <LogOut className="w-3 h-3 mr-1.5" />
+                    Sair
+                  </Button>
+                </div>
+              </div>
+
+              {/* Menu Mobile - visível apenas em telas pequenas */}
+              <div className="lg:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 px-3 py-2 border-gray-300 hover:border-pink-300 hover:bg-pink-50"
+                    >
+                      <Menu className="w-4 h-4" />
+                      <span className="text-xs">Menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 mt-2">
+                    {/* Toggle de visualização */}
+                    <div className="px-3 py-2">
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        VISUALIZAÇÃO
+                      </p>
+                      <div className="flex gap-1 bg-gray-50 rounded-lg p-1">
+                        <Button
+                          variant={
+                            viewMode === "inscricoes" ? "default" : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => setViewMode("inscricoes")}
+                          className={`flex-1 py-2 text-xs font-medium transition-all duration-200 ${
+                            viewMode === "inscricoes"
+                              ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-sm"
+                              : "text-gray-600 hover:text-gray-800 hover:bg-white"
+                          }`}
+                        >
+                          <GraduationCap className="w-3 h-3 mr-1" />
+                          Alunas
+                        </Button>
+                        <Button
+                          variant={
+                            viewMode === "monitores" ? "default" : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => setViewMode("monitores")}
+                          className={`flex-1 py-2 text-xs font-medium transition-all duration-200 ${
+                            viewMode === "monitores"
+                              ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-sm"
+                              : "text-gray-600 hover:text-gray-800 hover:bg-white"
+                          }`}
+                        >
+                          <Shield className="w-3 h-3 mr-1" />
+                          Monitores
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Botões de ação para ADMs */}
+                    {monitorRole === "ADM" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <div className="px-3 py-2">
+                          <p className="text-xs font-medium text-gray-500 mb-2">
+                            AÇÕES DO ADMINISTRADOR
+                          </p>
+                          <div className="space-y-2">
+                            <Button
+                              size="sm"
+                              onClick={() => setIsModalNovaInscricaoOpen(true)}
+                              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 text-xs font-medium transition-all duration-200 shadow-sm justify-start"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Nova Inscrição
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => setIsModalNovoMonitorOpen(true)}
+                              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 text-xs font-medium transition-all duration-200 shadow-sm justify-start"
+                            >
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Novo Monitor
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Status da sessão */}
+                    <DropdownMenuSeparator />
+                    <div className="px-3 py-2">
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        SESSÃO
+                      </p>
+                      {isAuthenticated && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 px-3 py-2 rounded-lg mb-2">
+                          <div className="relative">
+                            <Wifi className="w-4 h-4 text-green-600" />
+                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          </div>
+                          <div className="text-sm">
+                            <span
+                              className={
+                                sessionTimeLeft < 5 * 60 * 1000
+                                  ? "text-red-600 font-semibold"
+                                  : "text-green-700 font-medium"
+                              }
+                            >
+                              {formatTimeLeft(sessionTimeLeft)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleLogout}
+                        className="w-full text-pink-600 hover:text-pink-700 hover:bg-pink-50 border-pink-200 hover:border-pink-300 transition-all duration-200 justify-start"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sair
+                      </Button>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-4 md:py-8">
-        {/* Dashboard Stats - Layout mais compacto */}
-        <div className="grid gap-4 md:gap-6 mb-6 md:mb-8">
-          {/* Resumo Geral - Mais compacto */}
-          <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-lg">
-            <CardHeader className="pb-2 md:pb-3">
-              <CardTitle className="text-base md:text-lg font-bold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-                Resumo Geral
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {isLoadingInscricoes ? (
-                <StatsShimmer />
-              ) : (
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
-                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg md:rounded-xl border border-blue-200">
-                    <div className="text-lg md:text-2xl font-bold text-blue-700">
-                      {inscricoes.length}
-                    </div>
-                    <p className="text-xs md:text-sm font-medium text-blue-600">
-                      Total
-                    </p>
-                  </div>
-                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg md:rounded-xl border border-yellow-200">
-                    <div className="text-lg md:text-2xl font-bold text-yellow-700">
-                      {inscricoes.filter((i) => i.status === "INSCRITA").length}
-                    </div>
-                    <p className="text-xs md:text-sm font-medium text-yellow-600">
-                      Inscritas
-                    </p>
-                  </div>
-                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg md:rounded-xl border border-green-200">
-                    <div className="text-lg md:text-2xl font-bold text-green-700">
-                      {
-                        inscricoes.filter((i) => i.status === "MATRICULADA")
-                          .length
-                      }
-                    </div>
-                    <p className="text-xs md:text-sm font-medium text-green-600">
-                      Matriculadas
-                    </p>
-                  </div>
-                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg md:rounded-xl border border-orange-200">
-                    <div className="text-lg md:text-2xl font-bold text-orange-700">
-                      {
-                        inscricoes.filter((i) => i.status === "EXCEDENTE")
-                          .length
-                      }
-                    </div>
-                    <p className="text-xs md:text-sm font-medium text-orange-600">
-                      Excedentes
-                    </p>
-                  </div>
-                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg md:rounded-xl border border-red-200">
-                    <div className="text-lg md:text-2xl font-bold text-red-700">
-                      {
-                        inscricoes.filter((i) => i.status === "CANCELADA")
-                          .length
-                      }
-                    </div>
-                    <p className="text-xs md:text-sm font-medium text-red-600">
-                      Canceladas
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Dados por Curso - Layout mais compacto */}
-          <div className="grid md:grid-cols-2 gap-3 md:gap-6">
-            {/* Jogos Digitais */}
-            {(() => {
-              const jogosInscricoes = inscricoes.filter(
-                (i) => i.curso === "Jogos"
-              );
-              const jogosStats = {
-                total: jogosInscricoes.length,
-                inscrita: jogosInscricoes.filter((i) => i.status === "INSCRITA")
-                  .length,
-                matriculada: jogosInscricoes.filter(
-                  (i) => i.status === "MATRICULADA"
-                ).length,
-                excedente: jogosInscricoes.filter(
-                  (i) => i.status === "EXCEDENTE"
-                ).length,
-                cancelada: jogosInscricoes.filter(
-                  (i) => i.status === "CANCELADA"
-                ).length,
-              };
-              const vagas = 50;
-              const ocupacao =
-                ((jogosStats.matriculada + jogosStats.inscrita) / vagas) * 100;
-
-              return (
-                <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-0 shadow-lg">
-                  <CardHeader className="pb-2 md:pb-3">
-                    <CardTitle className="text-base md:text-lg font-bold text-purple-900 flex items-center gap-2">
-                      <Gamepad2 className="w-4 h-4 md:w-5 md:h-5 text-purple-700" />
-                      Jogos Digitais
-                      <Badge className="bg-purple-100 text-purple-700 ml-auto text-xs hover:bg-purple-200 hover:text-purple-800 transition-all duration-200 cursor-pointer">
-                        {jogosStats.total}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3 md:space-y-4">
-                      {/* Barra de Progresso */}
-                      <div>
-                        <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
-                          <span>Ocupação</span>
-                          <span>
-                            {jogosStats.matriculada + jogosStats.inscrita}/
-                            {vagas}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                          <div
-                            className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {ocupacao.toFixed(1)}% ocupado
-                        </p>
+        <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
+          {/* Dashboard Stats - Layout mais compacto */}
+          <div className="grid gap-4 md:gap-6 mb-6 md:mb-8">
+            {/* Resumo Geral - Mais compacto */}
+            <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-lg">
+              <CardHeader className="pb-2 md:pb-3">
+                <CardTitle className="text-base md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                  Resumo Geral
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {isLoadingInscricoes ? (
+                  <StatsShimmer />
+                ) : (
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
+                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg md:rounded-xl border border-blue-200">
+                      <div className="text-lg md:text-2xl font-bold text-blue-700">
+                        {inscricoes.length}
                       </div>
-
-                      {/* Stats - Layout mais compacto */}
-                      <div className="grid grid-cols-2 gap-2 md:gap-3">
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                          <div className="text-sm md:text-lg font-bold text-green-700">
-                            {jogosStats.matriculada}
-                          </div>
-                          <p className="text-xs font-medium text-green-600">
-                            Matriculadas
-                          </p>
-                        </div>
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                          <div className="text-sm md:text-lg font-bold text-yellow-700">
-                            {jogosStats.inscrita}
-                          </div>
-                          <p className="text-xs font-medium text-yellow-600">
-                            Inscritas
-                          </p>
-                        </div>
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                          <div className="text-sm md:text-lg font-bold text-orange-700">
-                            {jogosStats.excedente}
-                          </div>
-                          <p className="text-xs font-medium text-orange-600">
-                            Excedentes
-                          </p>
-                        </div>
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                          <div className="text-sm md:text-lg font-bold text-red-700">
-                            {jogosStats.cancelada}
-                          </div>
-                          <p className="text-xs font-medium text-red-600">
-                            Canceladas
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-xs md:text-sm font-medium text-blue-600">
+                        Total
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
-
-            {/* Robótica */}
-            {(() => {
-              const roboticaInscricoes = inscricoes.filter(
-                (i) => i.curso === "Robótica"
-              );
-              const roboticaStats = {
-                total: roboticaInscricoes.length,
-                inscrita: roboticaInscricoes.filter(
-                  (i) => i.status === "INSCRITA"
-                ).length,
-                matriculada: roboticaInscricoes.filter(
-                  (i) => i.status === "MATRICULADA"
-                ).length,
-                excedente: roboticaInscricoes.filter(
-                  (i) => i.status === "EXCEDENTE"
-                ).length,
-                cancelada: roboticaInscricoes.filter(
-                  (i) => i.status === "CANCELADA"
-                ).length,
-              };
-              const vagas = 50;
-              const ocupacao =
-                ((roboticaStats.matriculada + roboticaStats.inscrita) / vagas) *
-                100;
-
-              return (
-                <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-0 shadow-lg">
-                  <CardHeader className="pb-2 md:pb-3">
-                    <CardTitle className="text-base md:text-lg font-bold text-blue-900 flex items-center gap-2">
-                      <Bot className="w-4 h-4 md:w-5 md:h-5 text-blue-700" />
-                      Robótica / IA
-                      <Badge className="bg-blue-100 text-blue-700 ml-auto text-xs hover:bg-blue-200 hover:text-blue-800 transition-all duration-200 cursor-pointer">
-                        {roboticaStats.total}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3 md:space-y-4">
-                      {/* Barra de Progresso */}
-                      <div>
-                        <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
-                          <span>Ocupação</span>
-                          <span>
-                            {roboticaStats.matriculada + roboticaStats.inscrita}
-                            /{vagas}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {ocupacao.toFixed(1)}% ocupado
-                        </p>
+                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg md:rounded-xl border border-yellow-200">
+                      <div className="text-lg md:text-2xl font-bold text-yellow-700">
+                        {
+                          inscricoes.filter((i) => i.status === "INSCRITA")
+                            .length
+                        }
                       </div>
-
-                      {/* Stats - Layout mais compacto */}
-                      <div className="grid grid-cols-2 gap-2 md:gap-3">
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                          <div className="text-sm md:text-lg font-bold text-green-700">
-                            {roboticaStats.matriculada}
-                          </div>
-                          <p className="text-xs font-medium text-green-600">
-                            Matriculadas
-                          </p>
-                        </div>
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                          <div className="text-sm md:text-lg font-bold text-yellow-700">
-                            {roboticaStats.inscrita}
-                          </div>
-                          <p className="text-xs font-medium text-yellow-600">
-                            Inscritas
-                          </p>
-                        </div>
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                          <div className="text-sm md:text-lg font-bold text-orange-700">
-                            {roboticaStats.excedente}
-                          </div>
-                          <p className="text-xs font-medium text-orange-600">
-                            Excedentes
-                          </p>
-                        </div>
-                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                          <div className="text-sm md:text-lg font-bold text-red-700">
-                            {roboticaStats.cancelada}
-                          </div>
-                          <p className="text-xs font-medium text-red-600">
-                            Canceladas
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-xs md:text-sm font-medium text-yellow-600">
+                        Inscritas
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
-          </div>
-        </div>
+                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg md:rounded-xl border border-green-200">
+                      <div className="text-lg md:text-2xl font-bold text-green-700">
+                        {
+                          inscricoes.filter((i) => i.status === "MATRICULADA")
+                            .length
+                        }
+                      </div>
+                      <p className="text-xs md:text-sm font-medium text-green-600">
+                        Matriculadas
+                      </p>
+                    </div>
+                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg md:rounded-xl border border-orange-200">
+                      <div className="text-lg md:text-2xl font-bold text-orange-700">
+                        {
+                          inscricoes.filter((i) => i.status === "EXCEDENTE")
+                            .length
+                        }
+                      </div>
+                      <p className="text-xs md:text-sm font-medium text-orange-600">
+                        Excedentes
+                      </p>
+                    </div>
+                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg md:rounded-xl border border-red-200">
+                      <div className="text-lg md:text-2xl font-bold text-red-700">
+                        {
+                          inscricoes.filter((i) => i.status === "CANCELADA")
+                            .length
+                        }
+                      </div>
+                      <p className="text-xs md:text-sm font-medium text-red-600">
+                        Canceladas
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Lista de Inscrições */}
-        <Card className="bg-white shadow-lg border-0" ref={inscricoesListRef}>
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b">
-            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-600" />
-              Lista de Inscrições
-              <Badge className="bg-blue-100 text-blue-700 ml-auto hover:bg-blue-200 hover:text-blue-800 transition-all duration-200 cursor-pointer">
-                {filteredInscricoes.length}{" "}
-                {filteredInscricoes.length === 1 ? "inscrição" : "inscrições"}
-              </Badge>
-            </CardTitle>
-            {searchTerm && (
-              <p className="text-sm text-gray-600">
-                Resultados para:{" "}
-                <span className="font-semibold">"{searchTerm}"</span>
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="p-0">
-            {isLoadingInscricoes ? (
-              // Shimmer effect durante o carregamento
-              <div className="divide-y divide-gray-100">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <InscricaoShimmer key={index} />
-                ))}
-              </div>
-            ) : filteredInscricoes.length === 0 ? (
-              <div className="text-center py-12">
-                <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">
-                  {searchTerm
-                    ? "Nenhuma inscrição encontrada"
-                    : "Nenhuma inscrição cadastrada"}
-                </p>
-                <p className="text-gray-500 text-sm mt-1">
-                  {searchTerm
-                    ? "Tente buscar por outro termo"
-                    : "As inscrições aparecerão aqui quando forem criadas"}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {filteredInscricoes.map((inscricao, index) => (
-                  <div
-                    key={inscricao.id}
-                    className="p-4 hover:bg-gradient-to-r hover:from-pink-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-pink-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-4">
-                          {/* Avatar/Ícone */}
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-purple-700 font-bold text-lg">
-                              {inscricao.nome.charAt(0).toUpperCase()}
+            {/* Dados por Curso - Layout mais compacto */}
+            <div className="grid md:grid-cols-2 gap-3 md:gap-6">
+              {/* Jogos Digitais */}
+              {(() => {
+                const jogosInscricoes = inscricoes.filter(
+                  (i) => i.curso === "Jogos"
+                );
+                const jogosStats = {
+                  total: jogosInscricoes.length,
+                  inscrita: jogosInscricoes.filter(
+                    (i) => i.status === "INSCRITA"
+                  ).length,
+                  matriculada: jogosInscricoes.filter(
+                    (i) => i.status === "MATRICULADA"
+                  ).length,
+                  excedente: jogosInscricoes.filter(
+                    (i) => i.status === "EXCEDENTE"
+                  ).length,
+                  cancelada: jogosInscricoes.filter(
+                    (i) => i.status === "CANCELADA"
+                  ).length,
+                };
+                const vagas = 50;
+                const ocupacao =
+                  ((jogosStats.matriculada + jogosStats.inscrita) / vagas) *
+                  100;
+
+                return (
+                  <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-0 shadow-lg">
+                    <CardHeader className="pb-2 md:pb-3">
+                      <CardTitle className="text-base md:text-lg font-bold text-purple-900 flex items-center gap-2">
+                        <Gamepad2 className="w-4 h-4 md:w-5 md:h-5 text-purple-700" />
+                        Jogos Digitais
+                        <Badge className="bg-purple-100 text-purple-700 ml-auto text-xs hover:bg-purple-200 hover:text-purple-800 transition-all duration-200 cursor-pointer">
+                          {jogosStats.total}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-3 md:space-y-4">
+                        {/* Barra de Progresso */}
+                        <div>
+                          <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                            <span>Ocupação</span>
+                            <span>
+                              {jogosStats.matriculada + jogosStats.inscrita}/
+                              {vagas}
                             </span>
                           </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                            <div
+                              className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {ocupacao.toFixed(1)}% ocupado
+                          </p>
+                        </div>
 
-                          {/* Informações principais */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-semibold text-gray-900 truncate">
-                                {inscricao.nome}
-                              </p>
-                              {getStatusBadge(inscricao.status)}
+                        {/* Stats - Layout mais compacto */}
+                        <div className="grid grid-cols-2 gap-2 md:gap-3">
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                            <div className="text-sm md:text-lg font-bold text-green-700">
+                              {jogosStats.matriculada}
                             </div>
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                              <span className="flex items-center gap-1">
-                                <GraduationCap className="w-4 h-4" />
-                                {inscricao.ano_escolar}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                {inscricao.curso === "Jogos" ? (
-                                  <Gamepad2 className="w-4 h-4" />
-                                ) : (
-                                  <Bot className="w-4 h-4" />
-                                )}
+                            <p className="text-xs font-medium text-green-600">
+                              Matriculadas
+                            </p>
+                          </div>
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                            <div className="text-sm md:text-lg font-bold text-yellow-700">
+                              {jogosStats.inscrita}
+                            </div>
+                            <p className="text-xs font-medium text-yellow-600">
+                              Inscritas
+                            </p>
+                          </div>
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                            <div className="text-sm md:text-lg font-bold text-orange-700">
+                              {jogosStats.excedente}
+                            </div>
+                            <p className="text-xs font-medium text-orange-600">
+                              Excedentes
+                            </p>
+                          </div>
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                            <div className="text-sm md:text-lg font-bold text-red-700">
+                              {jogosStats.cancelada}
+                            </div>
+                            <p className="text-xs font-medium text-red-600">
+                              Canceladas
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Robótica */}
+              {(() => {
+                const roboticaInscricoes = inscricoes.filter(
+                  (i) => i.curso === "Robótica"
+                );
+                const roboticaStats = {
+                  total: roboticaInscricoes.length,
+                  inscrita: roboticaInscricoes.filter(
+                    (i) => i.status === "INSCRITA"
+                  ).length,
+                  matriculada: roboticaInscricoes.filter(
+                    (i) => i.status === "MATRICULADA"
+                  ).length,
+                  excedente: roboticaInscricoes.filter(
+                    (i) => i.status === "EXCEDENTE"
+                  ).length,
+                  cancelada: roboticaInscricoes.filter(
+                    (i) => i.status === "CANCELADA"
+                  ).length,
+                };
+                const vagas = 50;
+                const ocupacao =
+                  ((roboticaStats.matriculada + roboticaStats.inscrita) /
+                    vagas) *
+                  100;
+
+                return (
+                  <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-0 shadow-lg">
+                    <CardHeader className="pb-2 md:pb-3">
+                      <CardTitle className="text-base md:text-lg font-bold text-blue-900 flex items-center gap-2">
+                        <Bot className="w-4 h-4 md:w-5 md:h-5 text-blue-700" />
+                        Robótica / IA
+                        <Badge className="bg-blue-100 text-blue-700 ml-auto text-xs hover:bg-blue-200 hover:text-blue-800 transition-all duration-200 cursor-pointer">
+                          {roboticaStats.total}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-3 md:space-y-4">
+                        {/* Barra de Progresso */}
+                        <div>
+                          <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                            <span>Ocupação</span>
+                            <span>
+                              {roboticaStats.matriculada +
+                                roboticaStats.inscrita}
+                              /{vagas}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {ocupacao.toFixed(1)}% ocupado
+                          </p>
+                        </div>
+
+                        {/* Stats - Layout mais compacto */}
+                        <div className="grid grid-cols-2 gap-2 md:gap-3">
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                            <div className="text-sm md:text-lg font-bold text-green-700">
+                              {roboticaStats.matriculada}
+                            </div>
+                            <p className="text-xs font-medium text-green-600">
+                              Matriculadas
+                            </p>
+                          </div>
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                            <div className="text-sm md:text-lg font-bold text-yellow-700">
+                              {roboticaStats.inscrita}
+                            </div>
+                            <p className="text-xs font-medium text-yellow-600">
+                              Inscritas
+                            </p>
+                          </div>
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                            <div className="text-sm md:text-lg font-bold text-orange-700">
+                              {roboticaStats.excedente}
+                            </div>
+                            <p className="text-xs font-medium text-orange-600">
+                              Excedentes
+                            </p>
+                          </div>
+                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                            <div className="text-sm md:text-lg font-bold text-red-700">
+                              {roboticaStats.cancelada}
+                            </div>
+                            <p className="text-xs font-medium text-red-600">
+                              Canceladas
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Lista de Inscrições ou Monitores */}
+          <Card className="bg-white shadow-lg border-0" ref={inscricoesListRef}>
+            <CardHeader className="bg-gradient-to-r from-gray-50 via-purple-50 to-pink-50 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
+                    {viewMode === "inscricoes" ? (
+                      <GraduationCap className="w-5 h-5 text-white" />
+                    ) : (
+                      <Shield className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      {viewMode === "inscricoes"
+                        ? "Lista de Inscrições"
+                        : "Lista de Monitores"}
+                    </span>
+                    <p className="text-sm font-normal text-gray-600 mt-1">
+                      {viewMode === "inscricoes"
+                        ? "Gerencie todas as inscrições dos cursos"
+                        : "Gerencie todos os monitores do sistema"}
+                    </p>
+                  </div>
+                </CardTitle>
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border-blue-200 hover:from-blue-200 hover:to-purple-200 hover:text-blue-800 transition-all duration-200 cursor-pointer px-4 py-2">
+                    <span className="font-semibold">
+                      {viewMode === "inscricoes"
+                        ? `${filteredInscricoes.length} ${
+                            filteredInscricoes.length === 1
+                              ? "inscrição"
+                              : "inscrições"
+                          }`
+                        : `${monitores.length} ${
+                            monitores.length === 1 ? "monitor" : "monitores"
+                          }`}
+                    </span>
+                  </Badge>
+                  {searchTerm && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
+                      <Search className="w-4 h-4 text-gray-500" />
+                      <span>
+                        Filtrado por:{" "}
+                        <span className="font-semibold text-purple-600">
+                          "{searchTerm}"
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {viewMode === "monitores" ? (
+                // Visualização de Monitores
+                !filteredMonitores || filteredMonitores.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 font-medium">
+                      {searchTerm
+                        ? "Nenhum monitor encontrado"
+                        : "Nenhum monitor cadastrado"}
+                    </p>
+                    <p className="text-gray-500 text-sm mt-1">
+                      {searchTerm
+                        ? "Tente buscar por outro termo"
+                        : "Os monitores aparecerão aqui quando forem criados"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {filteredMonitores.map((monitor) => (
+                      <MonitorCard key={monitor.id} monitor={monitor} />
+                    ))}
+                  </div>
+                )
+              ) : // Visualização de Inscrições (código existente)
+              isLoadingInscricoes ? (
+                // Shimmer effect durante o carregamento
+                <div className="divide-y divide-gray-100">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <InscricaoShimmer key={index} />
+                  ))}
+                </div>
+              ) : filteredInscricoes.length === 0 ? (
+                <div className="text-center py-12">
+                  <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium">
+                    {searchTerm
+                      ? "Nenhuma inscrição encontrada"
+                      : "Nenhuma inscrição cadastrada"}
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {searchTerm
+                      ? "Tente buscar por outro termo"
+                      : "As inscrições aparecerão aqui quando forem criadas"}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredInscricoes.map((inscricao, index) => {
+                    const isExpanded = expandedCards.has(inscricao.id);
+
+                    return (
+                      <div
+                        key={inscricao.id}
+                        className="p-4 hover:bg-gradient-to-r hover:from-pink-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-pink-300 hover:shadow-sm"
+                      >
+                        {/* Header sempre visível - Linha 1 e 2 */}
+                        <div className="space-y-3">
+                          {/* Linha 1: Avatar + Nome + Status */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {/* Avatar */}
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
+                                  inscricao.curso === "Jogos"
+                                    ? "bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-200"
+                                    : "bg-gradient-to-br from-blue-100 to-cyan-100 border-2 border-blue-200"
+                                }`}
+                              >
+                                <span
+                                  className={`font-bold text-sm ${
+                                    inscricao.curso === "Jogos"
+                                      ? "text-purple-700"
+                                      : "text-blue-700"
+                                  }`}
+                                >
+                                  {(() => {
+                                    const nomes = inscricao.nome
+                                      .trim()
+                                      .split(" ");
+                                    const primeiroNome =
+                                      nomes[0]?.charAt(0)?.toUpperCase() || "";
+                                    const segundoNome =
+                                      nomes[1]?.charAt(0)?.toUpperCase() || "";
+                                    return primeiroNome + segundoNome;
+                                  })()}
+                                </span>
+                              </div>
+
+                              {/* Nome */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 truncate text-base">
+                                  {inscricao.nome}
+                                </h3>
+                              </div>
+
+                              {/* Status */}
+                              <div className="flex-shrink-0">
+                                {getStatusBadge(inscricao.status)}
+                              </div>
+                            </div>
+
+                            {/* Botão de expansão */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCardExpansion(inscricao.id)}
+                              className="flex-shrink-0 ml-2 p-1 h-8 w-8 rounded-full hover:bg-gray-100"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-gray-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-600" />
+                              )}
+                            </Button>
+                          </div>
+
+                          {/* Linha 2: Curso + Data de inscrição */}
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
+                              {inscricao.curso === "Jogos" ? (
+                                <Gamepad2 className="w-3 h-3 text-purple-600" />
+                              ) : (
+                                <Bot className="w-3 h-3 text-blue-600" />
+                              )}
+                              <span className="font-medium">
                                 {inscricao.curso === "Jogos"
-                                  ? "Jogos Digitais"
+                                  ? "Jogos"
                                   : "Robótica"}
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-4 h-4" />
-                                {inscricao.email}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
+                            </span>
+                            <span className="flex items-center gap-1 text-gray-500">
+                              <Calendar className="w-3 h-3" />
+                              <span>
                                 {new Date(
                                   inscricao.created_at
                                 ).toLocaleDateString("pt-BR")}
                               </span>
-                            </div>
+                            </span>
                           </div>
+
+                          {/* Conteúdo expansível */}
+                          {isExpanded && (
+                            <div className="space-y-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                              {/* Informações pessoais */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <h4 className="font-medium text-gray-900 text-sm">
+                                    Informações Pessoais
+                                  </h4>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                                      <Mail className="w-3 h-3 flex-shrink-0" />
+                                      <span className="truncate">
+                                        {inscricao.email}
+                                      </span>
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      <span className="font-medium">CPF:</span>{" "}
+                                      {inscricao.cpf}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      <span className="font-medium">
+                                        Nascimento:
+                                      </span>{" "}
+                                      {new Date(
+                                        inscricao.data_nascimento
+                                      ).toLocaleDateString("pt-BR")}
+                                    </div>
+                                    {inscricao.nome_responsavel && (
+                                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                                        <Users className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">
+                                          {inscricao.nome_responsavel}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {inscricao.telefone_whatsapp && (
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">
+                                          WhatsApp:
+                                        </span>{" "}
+                                        {inscricao.telefone_whatsapp}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <h4 className="font-medium text-gray-900 text-sm">
+                                    Informações Acadêmicas
+                                  </h4>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                                      <GraduationCap className="w-3 h-3 text-purple-600" />
+                                      <span>{inscricao.escolaridade}</span>
+                                    </div>
+                                    {inscricao.ano_escolar && (
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">
+                                          Ano:
+                                        </span>{" "}
+                                        {inscricao.ano_escolar}
+                                      </div>
+                                    )}
+                                    {inscricao.escola && (
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">
+                                          Escola:
+                                        </span>{" "}
+                                        {inscricao.escola}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Endereço */}
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-gray-900 text-sm">
+                                  Endereço
+                                </h4>
+                                <div className="text-sm text-gray-600">
+                                  <p>
+                                    {inscricao.logradouro}, {inscricao.numero}
+                                    {inscricao.complemento &&
+                                      `, ${inscricao.complemento}`}
+                                  </p>
+                                  <p>
+                                    {inscricao.bairro} - {inscricao.cidade}/
+                                    {inscricao.estado}
+                                  </p>
+                                  <p>CEP: {inscricao.cep}</p>
+                                </div>
+                              </div>
+
+                              {/* Botão de ação */}
+                              <div className="flex justify-end pt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    router.push(
+                                      `/monitor/inscricao/${
+                                        inscricao.id
+                                      }?email=${encodeURIComponent(email)}`
+                                    )
+                                  }
+                                  className="hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:border-pink-300 hover:text-pink-700 transition-all duration-200 border-gray-300 text-gray-700"
+                                >
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver detalhes completos
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            router.push(
-                              `/monitor/inscricao/${
-                                inscricao.id
-                              }?email=${encodeURIComponent(email)}`
-                            )
-                          }
-                          className="hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:border-pink-300 hover:text-pink-700 transition-all duration-200"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Ver detalhes
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Modais */}
+      <ModalNovaInscricao
+        isOpen={isModalNovaInscricaoOpen}
+        onClose={() => setIsModalNovaInscricaoOpen(false)}
+        onSuccess={handleNovaInscricaoSuccess}
+      />
+
+      <ModalNovoMonitor
+        isOpen={isModalNovoMonitorOpen}
+        onClose={() => setIsModalNovoMonitorOpen(false)}
+        onSuccess={handleNovoMonitorSuccess}
+      />
     </div>
   );
 }
