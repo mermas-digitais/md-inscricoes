@@ -1,12 +1,14 @@
 "use client";
 
-import type React from "react";
-
-import { useState, useEffect, useMemo } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CustomButton } from "@/components/ui/custom-button";
 import { CustomInput } from "@/components/ui/custom-input";
-import { Header } from "@/components/header";
 import EscolaSelector from "@/components/ui/escola-selector";
 import {
   Select,
@@ -15,16 +17,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { User, GraduationCap, Users, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
+import {
+  AlertTriangle,
+  Timer,
+  Zap,
+  User,
+  GraduationCap,
+  Users,
+  MapPin,
+  Clock,
+} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 interface FormData {
@@ -169,6 +175,14 @@ export default function InscricaoPage() {
   const [cpfExists, setCpfExists] = useState(false);
   const [cepNaoEncontrado, setCepNaoEncontrado] = useState(false);
 
+  // Estados para countdown
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+
   // Schema dinâmico para step1 com validação de CPF
   const step1SchemaWithValidation = useMemo(
     () => createStep1SchemaWithCPFValidation(cpfExists),
@@ -291,6 +305,43 @@ export default function InscricaoPage() {
 
     return () => clearTimeout(timer);
   }, [formData.cpf]);
+
+  // Countdown para deadline das inscrições
+  useEffect(() => {
+    // Ajustando para uma data futura para teste (amanhã às 23:59)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 59, 999);
+    const deadline = tomorrow;
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const difference = deadline.getTime() - now.getTime();
+
+      if (difference > 0) {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+        const minutes = Math.floor(
+          (difference % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+        setTimeLeft({ days, hours, minutes, seconds });
+      } else {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    // Atualizar imediatamente
+    updateCountdown();
+
+    // Atualizar a cada segundo
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const formatCPF = (value: string) => {
     return value
@@ -482,6 +533,81 @@ export default function InscricaoPage() {
 
   return (
     <>
+      {/* Countdown e Urgência - Posicionado no topo da página, logo após o Header */}
+      <div className="relative z-50 bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 shadow-lg -mt-16 pt-16">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          {/* Mensagem de Urgência */}
+          <div className="text-center mb-4">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
+              <span className="text-white font-bold text-lg tracking-wide animate-pulse">
+                ⚡ ÚLTIMAS HORAS ⚡
+              </span>
+              <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
+            </div>
+            <p className="text-white/90 text-sm font-medium">
+              As inscrições encerram <strong>AMANHÃ às 23:59</strong> • Apenas{" "}
+              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs">
+                8 VAGAS
+              </span>{" "}
+              disponíveis!
+            </p>
+          </div>
+
+          {/* Countdown */}
+          <div className="bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Timer className="w-5 h-5 text-white" />
+              <span className="text-white font-semibold text-sm tracking-wide">
+                TEMPO RESTANTE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="text-2xl font-bold text-white tabular-nums animate-pulse">
+                  {timeLeft.days.toString().padStart(2, "0")}
+                </div>
+                <div className="text-xs text-white/80 font-medium mt-1">
+                  DIAS
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="text-2xl font-bold text-white tabular-nums animate-pulse">
+                  {timeLeft.hours.toString().padStart(2, "0")}
+                </div>
+                <div className="text-xs text-white/80 font-medium mt-1">
+                  HORAS
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="text-2xl font-bold text-white tabular-nums animate-pulse">
+                  {timeLeft.minutes.toString().padStart(2, "0")}
+                </div>
+                <div className="text-xs text-white/80 font-medium mt-1">
+                  MIN
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                <div className="text-2xl font-bold text-white tabular-nums animate-pulse">
+                  {timeLeft.seconds.toString().padStart(2, "0")}
+                </div>
+                <div className="text-xs text-white/80 font-medium mt-1">
+                  SEG
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 text-center">
+              <div className="inline-flex items-center gap-2 bg-yellow-400/90 text-black px-4 py-2 rounded-full text-sm font-bold hover:bg-yellow-300/95 transition-all duration-300 shadow-lg shadow-yellow-400/30">
+                <AlertTriangle className="w-4 h-4" />
+                INSCREVA-SE AGORA ANTES QUE SEJA TARDE!
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Layout padrão - estrutura de camadas que ocupa 100% da viewport */}
       <div className="min-h-screen relative overflow-hidden">
         {/* Camada 1: Fundo roxo - sempre 100% da altura */}
@@ -503,8 +629,8 @@ export default function InscricaoPage() {
 
         {/* Camada 3: Conteúdo scrollável - ocupa mesma altura que o fundo */}
         <div className="relative z-10 min-h-screen flex flex-col">
-          {/* Espaçamento superior maior para posicionar o card mais abaixo */}
-          <div className="h-62 sm:h-56 lg:h-64 flex-shrink-0"></div>
+          {/* Espaçamento superior maior para posicionar o card mais embaixo */}
+          <div className="h-64 sm:h-72 lg:h-80 flex-shrink-0"></div>
 
           {/* Container do conteúdo principal */}
           <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-32">
