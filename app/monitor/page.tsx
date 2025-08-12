@@ -84,6 +84,30 @@ export default function MonitorPage() {
   const router = useRouter();
   const monitorEmail = searchParams.get("email");
 
+  // Função para formatar data corretamente (evita problemas de fuso horário)
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+
+    try {
+      // Método mais direto: forçar apenas a parte da data
+      const dateOnly = dateString.split("T")[0]; // Remove hora se existir
+
+      // Verificar se está no formato YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+        return dateString;
+      }
+
+      // Split manual e reconstrução como string brasileira
+      const [year, month, day] = dateOnly.split("-");
+      const brazilianFormat = `${day}/${month}/${year}`;
+
+      return brazilianFormat;
+    } catch (error) {
+      console.error("Erro ao formatar data:", error, "Input:", dateString);
+      return dateString; // Retorna original em caso de erro
+    }
+  };
+
   const [step, setStep] = useState<"email" | "otp" | "dashboard">("email");
   const [email, setEmail] = useState(monitorEmail || "");
   const [monitorName, setMonitorName] = useState("");
@@ -1149,9 +1173,7 @@ export default function MonitorPage() {
             </span>
             <span className="flex items-center gap-1 text-gray-500">
               <Calendar className="w-3 h-3" />
-              <span>
-                {new Date(monitor.created_at).toLocaleDateString("pt-BR")}
-              </span>
+              <span>{formatDate(monitor.created_at)}</span>
             </span>
           </div>
         </div>
@@ -1908,11 +1930,7 @@ export default function MonitorPage() {
                             </span>
                             <span className="flex items-center gap-1 text-gray-500">
                               <Calendar className="w-3 h-3" />
-                              <span>
-                                {new Date(
-                                  inscricao.created_at
-                                ).toLocaleDateString("pt-BR")}
-                              </span>
+                              <span>{formatDate(inscricao.created_at)}</span>
                             </span>
                           </div>
 
@@ -1940,9 +1958,7 @@ export default function MonitorPage() {
                                       <span className="font-medium">
                                         Nascimento:
                                       </span>{" "}
-                                      {new Date(
-                                        inscricao.data_nascimento
-                                      ).toLocaleDateString("pt-BR")}
+                                      {formatDate(inscricao.data_nascimento)}
                                     </div>
                                     {inscricao.nome_responsavel && (
                                       <div className="flex items-center gap-1 text-sm text-gray-600">

@@ -61,10 +61,30 @@ const formatPhone = (phone: string) => {
 
 const formatDate = (dateString: string) => {
   if (!dateString) return "";
+
+  console.log("formatDate - Input:", dateString);
+
   try {
-    return new Date(dateString).toLocaleDateString("pt-BR");
+    // Método mais direto: forçar apenas a parte da data
+    const dateOnly = dateString.split("T")[0]; // Remove hora se existir
+    console.log("formatDate - Date only:", dateOnly);
+
+    // Verificar se está no formato YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      console.log("formatDate - Not in YYYY-MM-DD format, returning original");
+      return dateString;
+    }
+
+    // Split manual e reconstrução como string brasileira
+    const [year, month, day] = dateOnly.split("-");
+    const brazilianFormat = `${day}/${month}/${year}`;
+
+    console.log("formatDate - Manual format result:", brazilianFormat);
+
+    return brazilianFormat;
   } catch (error) {
-    return dateString;
+    console.error("Erro ao formatar data:", error, "Input:", dateString);
+    return dateString; // Retorna original em caso de erro
   }
 };
 

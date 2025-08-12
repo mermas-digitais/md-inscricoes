@@ -561,7 +561,33 @@ export default function DetalheInscricao({
 
   const formatDate = (dateString: string | undefined | null) => {
     if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString("pt-BR");
+
+    console.log("formatDate - Input:", dateString);
+
+    try {
+      // Método mais direto: forçar apenas a parte da data
+      const dateOnly = dateString.split("T")[0]; // Remove hora se existir
+      console.log("formatDate - Date only:", dateOnly);
+
+      // Verificar se está no formato YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+        console.log(
+          "formatDate - Not in YYYY-MM-DD format, returning original"
+        );
+        return dateString;
+      }
+
+      // Split manual e reconstrução como string brasileira
+      const [year, month, day] = dateOnly.split("-");
+      const brazilianFormat = `${day}/${month}/${year}`;
+
+      console.log("formatDate - Manual format result:", brazilianFormat);
+
+      return brazilianFormat;
+    } catch (error) {
+      console.error("Erro ao formatar data:", error, "Input:", dateString);
+      return dateString; // Retorna original em caso de erro
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -792,6 +818,7 @@ export default function DetalheInscricao({
       const response = await fetch(`/api/monitor/inscricoes/${inscricaoId}`);
       if (response.ok) {
         const data = await response.json();
+        console.log("Data de nascimento raw do banco:", data.data_nascimento);
         setInscricao(data);
       } else {
         toast({
