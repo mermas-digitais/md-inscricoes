@@ -319,38 +319,49 @@ export function FileUploader({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-4xl h-[95vh] max-h-[95vh] p-0 gap-0 overflow-hidden">
-        <DialogHeader className="p-4 pb-2 border-b">
-          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
-            Anexar {documentType}
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col overflow-hidden bg-gradient-to-br from-white via-blue-50/10 to-indigo-50/10 border-0 shadow-2xl">
+        <DialogHeader className="border-b border-gray-100/50 pb-4 bg-gradient-to-r from-blue-50/50 via-indigo-50/30 to-purple-50/50 -m-6 mb-0 px-6 pt-6">
+          <DialogTitle className="text-lg md:text-xl font-bold flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300">
+              <Upload className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            </div>
+            <div>
+              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Anexar {documentType}
+              </span>
+              <p className="text-xs md:text-sm font-normal text-gray-600 mt-1">
+                Processe e anexe o documento necessário
+              </p>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
+          <div className="space-y-4 md:space-y-6">
             {/* Área de upload */}
             {!selectedFile && (
               <Card
-                className="cursor-pointer hover:bg-gray-50 transition-colors border-dashed border-2"
+                className="cursor-pointer hover:shadow-lg transition-all duration-300 border-2 border-dashed border-gray-300 hover:border-blue-400 bg-gradient-to-br from-white to-gray-50/50 hover:from-blue-50/30 hover:to-indigo-50/30"
                 onClick={openFileSelector}
               >
-                <CardContent className="p-4 sm:p-8 text-center">
-                  <Upload className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-gray-400" />
-                  <h3 className="text-base sm:text-lg font-semibold mb-2">
+                <CardContent className="p-6 sm:p-8 md:p-12 text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mx-auto mb-4 md:mb-6 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300">
+                    <Upload className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     Toque para selecionar arquivo
                   </h3>
-                  <p className="text-sm text-gray-600 mb-3 sm:mb-4 px-2">
+                  <p className="text-sm sm:text-base text-gray-600 mb-4 md:mb-6 px-2 leading-relaxed">
                     Imagens serão automaticamente processadas e convertidas para
-                    PDF
+                    PDF com alta qualidade
                   </p>
-                  <div className="flex items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <FileImage className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <div className="flex items-center justify-center gap-4 sm:gap-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-2 bg-white/80 px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
+                      <FileImage className="w-4 h-4 text-blue-500" />
                       <span>Imagens</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <div className="flex items-center gap-2 bg-white/80 px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
+                      <FileText className="w-4 h-4 text-red-500" />
                       <span>PDF</span>
                     </div>
                   </div>
@@ -368,32 +379,37 @@ export function FileUploader({
 
             {/* Controles de processamento */}
             {selectedFile?.type.includes("image") && !isProcessing && (
-              <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <Settings className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">
+              <Card className="border border-blue-200 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 shadow-md hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center shadow-md">
+                        <Settings className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm md:text-base font-semibold text-gray-800">
                         Qualidade da Digitalização
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <label className="flex items-center gap-2 text-xs sm:text-sm text-blue-700 cursor-pointer">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer bg-white/80 px-3 py-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
                         <input
                           type="checkbox"
                           checked={useFilters}
                           onChange={(e) => setUseFilters(e.target.checked)}
-                          className="rounded"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        Aplicar filtros para melhorar texto
+                        <span className="font-medium">
+                          Aplicar filtros para melhorar texto
+                        </span>
                       </label>
                       {processedFile && (
                         <Button
                           onClick={handleReprocess}
                           size="sm"
                           variant="outline"
-                          className="text-xs h-7"
+                          className="bg-white/80 border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 font-medium transition-all duration-200 hover:shadow-md"
                         >
+                          <RotateCw className="w-3 h-3 mr-2" />
                           Reaplicar
                         </Button>
                       )}
@@ -405,67 +421,91 @@ export function FileUploader({
 
             {/* Processamento */}
             {isProcessing && (
-              <Card>
-                <CardContent className="p-4 sm:p-6 text-center">
-                  <RotateCw className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto mb-3 sm:mb-4 text-blue-500" />
-                  <p className="text-sm sm:text-base text-gray-600">
+              <Card className="border border-gray-200 bg-gradient-to-br from-white to-gray-50/50 shadow-lg">
+                <CardContent className="p-6 md:p-8 text-center">
+                  <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 md:mb-6 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg">
+                    <RotateCw className="w-8 h-8 md:w-10 md:h-10 animate-spin text-white" />
+                  </div>
+                  <h3 className="text-lg md:text-xl font-bold mb-2 text-gray-800">
                     {selectedFile?.type.includes("image")
-                      ? "Processando imagem e convertendo para PDF..."
-                      : "Processando arquivo..."}
+                      ? "Processando Imagem"
+                      : "Processando Arquivo"}
+                  </h3>
+                  <p className="text-sm md:text-base text-gray-600 leading-relaxed">
+                    {selectedFile?.type.includes("image")
+                      ? "Otimizando qualidade da imagem e convertendo para PDF..."
+                      : "Validando e preparando arquivo..."}
                   </p>
+                  <div className="mt-4 flex justify-center">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse delay-75"></div>
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse delay-150"></div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
 
             {/* Preview do arquivo processado */}
             {processedFile && previewUrl && !isProcessing && (
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm sm:text-lg flex items-center gap-2">
-                      <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Preview do Arquivo
+              <div className="space-y-4 md:space-y-6">
+                <Card className="border border-gray-200 bg-gradient-to-br from-white to-gray-50/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardHeader className="border-b border-gray-100 pb-4">
+                    <CardTitle className="text-lg md:text-xl font-bold flex items-center gap-3">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center shadow-md">
+                        <Eye className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      </div>
+                      <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                        Preview do Arquivo
+                      </span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="bg-gray-100 rounded-lg p-2 sm:p-4 max-h-[40vh] overflow-hidden">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 md:p-6 max-h-[60vh] overflow-y-auto border border-gray-200 shadow-inner">
                       {processedFile.type.includes("pdf") &&
                       !selectedFile?.type.includes("image") ? (
                         // Mostrar ícone apenas para PDFs originais
-                        <div className="text-center py-4 sm:py-8">
-                          <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-red-500" />
-                          <p className="font-medium text-sm sm:text-base">
+                        <div className="text-center py-6 md:py-10">
+                          <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 md:mb-6 bg-gradient-to-r from-red-500 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <FileText className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                          </div>
+                          <h4 className="font-bold text-base md:text-lg text-gray-800 mb-2">
                             {processedFile.name}
-                          </p>
-                          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                            Arquivo PDF (
-                            {(processedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </h4>
+                          <p className="text-sm text-gray-600 bg-white/80 px-3 py-1 rounded-lg inline-block border border-gray-200">
+                            Arquivo PDF •{" "}
+                            {(processedFile.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       ) : selectedFile?.type.includes("image") ? (
                         // Mostrar preview da imagem original para imagens convertidas para PDF
-                        <div className="text-center">
-                          <img
-                            src={URL.createObjectURL(selectedFile)}
-                            alt="Preview da imagem"
-                            className="max-w-full max-h-60 sm:max-h-96 mx-auto rounded object-contain mb-3"
-                          />
-                          <div className="text-center">
-                            <p className="font-medium text-sm sm:text-base">
+                        <div className="text-center space-y-4">
+                          <div className="relative">
+                            <img
+                              src={URL.createObjectURL(selectedFile)}
+                              alt="Preview da imagem"
+                              className="max-w-full max-h-72 md:max-h-96 mx-auto rounded-lg object-contain shadow-lg border border-white"
+                            />
+                          </div>
+                          <div className="bg-white/90 rounded-lg p-4 border border-gray-200 shadow-sm">
+                            <h4 className="font-bold text-base md:text-lg text-gray-800 mb-2">
                               {processedFile.name}
+                            </h4>
+                            <p className="text-sm text-gray-600 mb-3">
+                              Arquivo PDF •{" "}
+                              {(processedFile.size / 1024 / 1024).toFixed(2)} MB
                             </p>
-                            <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                              Arquivo PDF (
-                              {(processedFile.size / 1024 / 1024).toFixed(2)}{" "}
-                              MB)
-                            </p>
-                            <p className="text-xs text-green-600 mt-2">
-                              ✓ Imagem{" "}
-                              {useFilters
-                                ? "digitalizada com filtros"
-                                : "processada"}{" "}
-                              e convertida para PDF
-                            </p>
+                            <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-2 rounded-lg border border-green-200">
+                              <Check className="w-4 h-4" />
+                              <span className="text-sm font-medium">
+                                Imagem{" "}
+                                {useFilters
+                                  ? "digitalizada com filtros"
+                                  : "processada"}{" "}
+                                e convertida para PDF
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -473,19 +513,19 @@ export function FileUploader({
                         <img
                           src={previewUrl}
                           alt="Preview"
-                          className="max-w-full max-h-60 sm:max-h-96 mx-auto rounded object-contain"
+                          className="max-w-full max-h-72 md:max-h-96 mx-auto rounded-lg object-contain shadow-lg border border-white"
                         />
                       )}
                     </div>
 
-                    <div className="flex justify-center gap-2 mt-3 sm:mt-4">
+                    <div className="flex justify-center gap-3 mt-4 md:mt-6">
                       <Button
                         onClick={downloadFile}
                         variant="outline"
                         size="sm"
-                        className="text-xs sm:text-sm h-7 sm:h-8"
+                        className="bg-white/80 border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 font-medium transition-all duration-200 hover:shadow-md"
                       >
-                        <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <Download className="w-4 h-4 mr-2" />
                         Download
                       </Button>
                     </div>
@@ -498,22 +538,22 @@ export function FileUploader({
 
         {/* Botões de ação fixos no rodapé */}
         {(selectedFile || processedFile) && (
-          <div className="border-t p-4 bg-white">
-            <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-4">
+          <div className="flex-shrink-0 border-t border-gray-100 p-4 md:p-6 bg-gradient-to-r from-gray-50/50 to-white">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4">
               <Button
                 onClick={openFileSelector}
                 variant="outline"
-                className="text-sm h-9 sm:h-10"
+                className="h-10 md:h-12 px-6 md:px-8 text-sm md:text-base font-medium bg-white border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 transition-all duration-200 hover:shadow-md rounded-lg"
               >
-                <X className="w-4 h-4 mr-2" />
+                <X className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Trocar Arquivo
               </Button>
               <Button
                 onClick={handleConfirm}
-                className="bg-green-600 hover:bg-green-700 text-sm h-9 sm:h-10"
+                className="h-10 md:h-12 px-6 md:px-8 text-sm md:text-base font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] rounded-lg"
                 disabled={!processedFile}
               >
-                <Check className="w-4 h-4 mr-2" />
+                <Check className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Confirmar Anexo
               </Button>
             </div>
