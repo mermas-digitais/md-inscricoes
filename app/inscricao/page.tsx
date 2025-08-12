@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { User, GraduationCap, Users, MapPin, Clock } from "lucide-react";
+import { User, GraduationCap, Users, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { z } from "zod";
