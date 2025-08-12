@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
+import { ConditionalLayout } from "@/components/conditional-layout";
+import { Toaster } from "@/components/ui/toaster";
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
+import type { ReactNode } from "react";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { Header } from "@/components/header";
 
 const inter = Inter({ subsets: ["latin"] });
 const poppins = Poppins({
@@ -33,7 +33,11 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${inter.className} ${poppins.variable}`}>
+    <html
+      lang="pt-BR"
+      className={`${inter.className} ${poppins.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <meta
           name="viewport"
@@ -51,9 +55,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           crossOrigin="anonymous"
         />
       </head>
-      <body className={`${inter.className} ${poppins.variable}`}>
-        <Header />
-        <main className="pt-16">{children}</main>
+      <body
+        className={`${inter.className} ${poppins.variable}`}
+        suppressHydrationWarning
+      >
+        <ConditionalLayout>{children}</ConditionalLayout>
         <Toaster />
       </body>
     </html>
