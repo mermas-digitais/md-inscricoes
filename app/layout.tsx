@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
+import { ConditionalLayout } from "@/components/conditional-layout";
+import { Toaster } from "@/components/ui/toaster";
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
+import type { ReactNode } from "react";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { ConditionalLayout } from "@/components/conditional-layout";
 
 const inter = Inter({ subsets: ["latin"] });
 const poppins = Poppins({
