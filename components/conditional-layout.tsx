@@ -12,11 +12,11 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
   const [isMonitorDashboard, setIsMonitorDashboard] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Função para verificar se é dashboard do monitor
   const checkIfMonitorDashboard = () => {
-    if (pathname !== "/monitor") {
+    if (!isMounted || pathname !== "/monitor") {
       return false;
     }
 
@@ -37,14 +37,17 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     return false;
   };
 
-  // Verificar sessão imediatamente e quando o pathname muda
+  // Hook para garantir que o componente está montado no cliente
   useEffect(() => {
-    setIsCheckingSession(true);
+    setIsMounted(true);
+  }, []);
 
-    // Verificar imediatamente
+  // Verificar sessão quando o componente monta e quando o pathname muda
+  useEffect(() => {
+    if (!isMounted) return;
+
     const isDashboard = checkIfMonitorDashboard();
     setIsMonitorDashboard(isDashboard);
-    setIsCheckingSession(false);
 
     // Verificar periodicamente para mudanças no localStorage
     const interval = setInterval(() => {
@@ -53,10 +56,12 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     }, 500); // Verificar a cada 500ms
 
     return () => clearInterval(interval);
-  }, [pathname]);
+  }, [pathname, isMounted]);
 
   // Listener para mudanças no localStorage (quando outra aba/janela modifica)
   useEffect(() => {
+    if (!isMounted) return;
+
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === "monitorSession") {
         const isDashboard = checkIfMonitorDashboard();
@@ -66,10 +71,12 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [pathname]);
+  }, [pathname, isMounted]);
 
   // Listener para mudanças no localStorage da mesma aba
   useEffect(() => {
+    if (!isMounted) return;
+
     const originalSetItem = localStorage.setItem;
     const originalRemoveItem = localStorage.removeItem;
 
@@ -92,11 +99,16 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       localStorage.setItem = originalSetItem;
       localStorage.removeItem = originalRemoveItem;
     };
-  }, [pathname]);
+  }, [pathname, isMounted]);
 
-  // Durante a verificação inicial, não mostrar header para evitar flash
-  if (isCheckingSession) {
-    return <main>{children}</main>;
+  // Durante a montagem inicial, sempre mostrar header para evitar hidratação inconsistente
+  if (!isMounted) {
+    return (
+      <>
+        <Header />
+        <main className="pt-16">{children}</main>
+      </>
+    );
   }
 
   return (
