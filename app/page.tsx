@@ -222,7 +222,7 @@ export default function HomePage() {
               </div>
               <p className="text-white/90 text-sm font-medium">
                 As inscrições encerram <strong>AMANHÃ às 23:59</strong> • Apenas{" "}
-                <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs">
+                <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs whitespace-nowrap">
                   8 VAGAS
                 </span>{" "}
                 disponíveis!
@@ -390,7 +390,7 @@ export default function HomePage() {
             </div>
             <p className="text-white/90 text-sm font-medium">
               As inscrições encerram <strong>AMANHÃ às 23:59</strong> • Apenas{" "}
-              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs">
+              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs whitespace-nowrap">
                 8 VAGAS
               </span>{" "}
               disponíveis!
@@ -516,11 +516,11 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Espaçamento superior maior para posicionar o card quase no final */}
-          <div className="h-[140vh] sm:h-[110vh] lg:h-[120vh] flex-shrink-0 "></div>
+          {/* Espaçamento superior maior para posicionar o card mais embaixo */}
+          <div className="h-[calc(60vh+550px)] sm:h-[calc(70vh+550px)] md:h-[calc(75vh+550px)] lg:h-[calc(80vh+550px)] xl:h-[calc(85vh+550px)] flex-shrink-0"></div>
 
           {/* Container do conteúdo principal */}
-          <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-20 bg-[#9854CB]">
+          <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-4 bg-[#9854CB]">
             <div className="w-full max-w-md">
               <div className="rounded-2xl bg-white shadow-lg px-6 pt-6 pb-6 font-poppins">
                 <div className="text-xs font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
@@ -554,7 +554,7 @@ export default function HomePage() {
           </div>
 
           {/* Footer fixo no final da página */}
-          <div className="flex-shrink-0 mt-auto pb-8 pt-8 bg-[#9854CB]">
+          <div className="flex-shrink-0 mt-auto pb-4 pt-2 bg-[#9854CB]">
             <div className="flex justify-center px-4">
               <div className="w-full max-w-md">
                 <img

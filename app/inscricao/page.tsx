@@ -547,7 +547,7 @@ export default function InscricaoPage() {
             </div>
             <p className="text-white/90 text-sm font-medium">
               As inscrições encerram <strong>AMANHÃ às 23:59</strong> • Apenas{" "}
-              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs">
+              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs whitespace-nowrap">
                 8 VAGAS
               </span>{" "}
               disponíveis!
