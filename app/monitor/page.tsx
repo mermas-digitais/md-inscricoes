@@ -50,6 +50,7 @@ import {
   Trash2,
   MoreVertical,
   FileDown,
+  Filter,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ModalNovaInscricao } from "@/components/ui/modal-nova-inscricao";
@@ -224,6 +225,17 @@ export default function MonitorPage() {
   const [isModalNovoMonitorOpen, setIsModalNovoMonitorOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+
+  // Estados para filtros
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({
+    status: [] as string[],
+    curso: [] as string[],
+    escolaridade: [] as string[],
+    anoEscolar: [] as string[],
+    cidade: "",
+    estado: "",
+  });
 
   // Estados para dados completos (estatísticas e busca)
   const [allInscricoes, setAllInscricoes] = useState<Inscricao[]>([]);
@@ -684,6 +696,68 @@ export default function MonitorPage() {
     return phone.replace(/\D/g, "");
   }
 
+  // Função para aplicar filtros
+  const applyFilters = useCallback(
+    (data: Inscricao[], filters: typeof activeFilters) => {
+      return data.filter((inscricao) => {
+        // Filtro por status
+        if (
+          filters.status.length > 0 &&
+          !filters.status.includes(inscricao.status)
+        ) {
+          return false;
+        }
+
+        // Filtro por curso
+        if (
+          filters.curso.length > 0 &&
+          !filters.curso.includes(inscricao.curso)
+        ) {
+          return false;
+        }
+
+        // Filtro por escolaridade
+        if (
+          filters.escolaridade.length > 0 &&
+          !filters.escolaridade.includes(inscricao.escolaridade)
+        ) {
+          return false;
+        }
+
+        // Filtro por ano escolar
+        if (
+          filters.anoEscolar.length > 0 &&
+          !filters.anoEscolar.includes(inscricao.ano_escolar)
+        ) {
+          return false;
+        }
+
+        // Filtro por cidade
+        if (
+          filters.cidade &&
+          !inscricao.cidade
+            ?.toLowerCase()
+            .includes(filters.cidade.toLowerCase())
+        ) {
+          return false;
+        }
+
+        // Filtro por estado
+        if (
+          filters.estado &&
+          !inscricao.estado
+            ?.toLowerCase()
+            .includes(filters.estado.toLowerCase())
+        ) {
+          return false;
+        }
+
+        return true;
+      });
+    },
+    []
+  );
+
   const handleSearch = useCallback(
     (term: string) => {
       setSearchTerm(term);
@@ -694,7 +768,11 @@ export default function MonitorPage() {
       }
 
       if (!term.trim()) {
-        setFilteredInscricoes(inscricoes);
+        const filteredInscricoesWithFilters = applyFilters(
+          allInscricoes,
+          activeFilters
+        );
+        setFilteredInscricoes(filteredInscricoesWithFilters);
         setFilteredMonitores(monitores);
         return;
       }
@@ -860,7 +938,9 @@ export default function MonitorPage() {
             return a.nome.localeCompare(b.nome);
           });
 
-        setFilteredInscricoes(filtered);
+        // Aplicar filtros ao resultado da busca
+        const filteredWithFilters = applyFilters(filtered, activeFilters);
+        setFilteredInscricoes(filteredWithFilters);
       }
 
       // Scroll automático para a lista quando há busca - com debounce
@@ -873,7 +953,15 @@ export default function MonitorPage() {
         }, 800); // Espera 800ms após parar de digitar
       }
     },
-    [viewMode, allMonitores, allInscricoes, monitores, inscricoes]
+    [
+      viewMode,
+      allMonitores,
+      allInscricoes,
+      monitores,
+      inscricoes,
+      activeFilters,
+      applyFilters,
+    ]
   );
 
   const handleStatusChange = useCallback(
@@ -2086,9 +2174,46 @@ export default function MonitorPage() {
                 )}
               </div>
 
-              {/* Ações - Desktop e Mobile */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                {/* Menu "Novo" para ADMs */}
+              {/* Botões de Ação - Filtros e Ações na mesma linha no mobile */}
+              <div className="flex flex-row items-center gap-3">
+                {/* Botão de Filtros - apenas para inscrições */}
+                {viewMode === "inscricoes" && (
+                  <Button
+                    onClick={() => setShowFilters(!showFilters)}
+                    variant="outline"
+                    size="sm"
+                    className={`px-4 py-4 rounded-2xl border-2 transition-all duration-300 ${
+                      showFilters ||
+                      Object.values(activeFilters).some((filter) =>
+                        Array.isArray(filter)
+                          ? filter.length > 0
+                          : filter !== ""
+                      )
+                        ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    <Filter className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Filtros</span>
+                    <span className="sm:hidden">Filtros</span>
+                    {Object.values(activeFilters).some((filter) =>
+                      Array.isArray(filter) ? filter.length > 0 : filter !== ""
+                    ) && (
+                      <Badge className="ml-2 bg-blue-600 text-white text-xs">
+                        {Object.values(activeFilters).reduce(
+                          (count, filter) => {
+                            if (Array.isArray(filter))
+                              return count + filter.length;
+                            return count + (filter ? 1 : 0);
+                          },
+                          0
+                        )}
+                      </Badge>
+                    )}
+                  </Button>
+                )}
+
+                {/* Menu "Ações" para ADMs */}
                 {monitorRole === "ADM" && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -2192,6 +2317,465 @@ export default function MonitorPage() {
             </div>
           </div>
         </div>
+
+        {/* Painel de Filtros */}
+        {viewMode === "inscricoes" && showFilters && (
+          <Card className="mx-6 mb-4 bg-gradient-to-br from-white to-blue-50 border-0 shadow-lg rounded-xl overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border-b border-blue-100 pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold flex items-center gap-3 text-blue-900">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shadow-sm">
+                    <Filter className="w-4 h-4 text-blue-600" />
+                  </div>
+                  Filtros
+                </CardTitle>
+                <Button
+                  onClick={() => {
+                    const resetFilters = {
+                      status: [],
+                      curso: [],
+                      escolaridade: [],
+                      anoEscolar: [],
+                      cidade: "",
+                      estado: "",
+                    };
+                    setActiveFilters(resetFilters);
+                    // Aplicar filtros reset imediatamente
+                    const currentData = searchTerm
+                      ? allInscricoes.filter((inscricao) => {
+                          const normalizedTerm = normalizeText(searchTerm);
+                          const normalizedName = normalizeText(inscricao.nome);
+                          const normalizedEmail = normalizeText(
+                            inscricao.email
+                          );
+                          const normalizedCPF = normalizeCPF(inscricao.cpf);
+                          const searchCPF = normalizeCPF(searchTerm);
+
+                          return (
+                            normalizedName.includes(normalizedTerm) ||
+                            normalizedEmail.includes(normalizedTerm) ||
+                            (searchCPF.length >= 3 &&
+                              normalizedCPF.includes(searchCPF))
+                          );
+                        })
+                      : allInscricoes;
+
+                    const filteredData = applyFilters(
+                      currentData,
+                      resetFilters
+                    );
+                    setFilteredInscricoes(filteredData);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-700 border-blue-200 bg-white/80 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-300 transition-all duration-200 shadow-sm backdrop-blur-sm"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Limpar Filtros
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                {/* Status - Botões compactos */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <label className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      Status
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {["INSCRITA", "MATRICULADA", "EXCEDENTE", "CANCELADA"].map(
+                      (status) => (
+                        <Button
+                          key={status}
+                          variant={
+                            activeFilters.status.includes(status)
+                              ? "default"
+                              : "outline"
+                          }
+                          size="sm"
+                          onClick={() => {
+                            const newStatus = activeFilters.status.includes(
+                              status
+                            )
+                              ? activeFilters.status.filter((s) => s !== status)
+                              : [...activeFilters.status, status];
+                            const newFilters = {
+                              ...activeFilters,
+                              status: newStatus,
+                            };
+                            setActiveFilters(newFilters);
+
+                            // Aplicar filtros imediatamente
+                            const currentData = searchTerm
+                              ? allInscricoes.filter((inscricao) => {
+                                  const normalizedTerm =
+                                    normalizeText(searchTerm);
+                                  const normalizedName = normalizeText(
+                                    inscricao.nome
+                                  );
+                                  const normalizedEmail = normalizeText(
+                                    inscricao.email
+                                  );
+                                  const normalizedCPF = normalizeCPF(
+                                    inscricao.cpf
+                                  );
+                                  const searchCPF = normalizeCPF(searchTerm);
+
+                                  return (
+                                    normalizedName.includes(normalizedTerm) ||
+                                    normalizedEmail.includes(normalizedTerm) ||
+                                    (searchCPF.length >= 3 &&
+                                      normalizedCPF.includes(searchCPF))
+                                  );
+                                })
+                              : allInscricoes;
+
+                            const filteredData = applyFilters(
+                              currentData,
+                              newFilters
+                            );
+                            setFilteredInscricoes(filteredData);
+                          }}
+                          className={`text-xs h-7 ${
+                            activeFilters.status.includes(status)
+                              ? "bg-green-600 hover:bg-green-700 border-green-600"
+                              : "border-green-200 text-green-700 hover:bg-green-50"
+                          }`}
+                        >
+                          {activeFilters.status.includes(status) && (
+                            <Check className="w-3 h-3 mr-1" />
+                          )}
+                          {status}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* Curso - Botões compactos */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                    <label className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      Curso
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {["Jogos", "Robótica"].map((curso) => (
+                      <Button
+                        key={curso}
+                        variant={
+                          activeFilters.curso.includes(curso)
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() => {
+                          const newCurso = activeFilters.curso.includes(curso)
+                            ? activeFilters.curso.filter((c) => c !== curso)
+                            : [...activeFilters.curso, curso];
+                          const newFilters = {
+                            ...activeFilters,
+                            curso: newCurso,
+                          };
+                          setActiveFilters(newFilters);
+
+                          // Aplicar filtros imediatamente
+                          const currentData = searchTerm
+                            ? allInscricoes.filter((inscricao) => {
+                                const normalizedTerm =
+                                  normalizeText(searchTerm);
+                                const normalizedName = normalizeText(
+                                  inscricao.nome
+                                );
+                                const normalizedEmail = normalizeText(
+                                  inscricao.email
+                                );
+                                const normalizedCPF = normalizeCPF(
+                                  inscricao.cpf
+                                );
+                                const searchCPF = normalizeCPF(searchTerm);
+
+                                return (
+                                  normalizedName.includes(normalizedTerm) ||
+                                  normalizedEmail.includes(normalizedTerm) ||
+                                  (searchCPF.length >= 3 &&
+                                    normalizedCPF.includes(searchCPF))
+                                );
+                              })
+                            : allInscricoes;
+
+                          const filteredData = applyFilters(
+                            currentData,
+                            newFilters
+                          );
+                          setFilteredInscricoes(filteredData);
+                        }}
+                        className={`text-xs h-7 ${
+                          activeFilters.curso.includes(curso)
+                            ? "bg-purple-600 hover:bg-purple-700 border-purple-600"
+                            : "border-purple-200 text-purple-700 hover:bg-purple-50"
+                        }`}
+                      >
+                        {activeFilters.curso.includes(curso) && (
+                          <Check className="w-3 h-3 mr-1" />
+                        )}
+                        {curso}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Escolaridade - Botões compactos */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <label className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      Escolaridade
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      "Ensino Fundamental",
+                      "Ensino Médio",
+                      "Ensino Superior",
+                    ].map((esc) => (
+                      <Button
+                        key={esc}
+                        variant={
+                          activeFilters.escolaridade.includes(esc)
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() => {
+                          const newEscolaridade =
+                            activeFilters.escolaridade.includes(esc)
+                              ? activeFilters.escolaridade.filter(
+                                  (e) => e !== esc
+                                )
+                              : [...activeFilters.escolaridade, esc];
+                          const newFilters = {
+                            ...activeFilters,
+                            escolaridade: newEscolaridade,
+                          };
+                          setActiveFilters(newFilters);
+
+                          // Aplicar filtros imediatamente
+                          const currentData = searchTerm
+                            ? allInscricoes.filter((inscricao) => {
+                                const normalizedTerm =
+                                  normalizeText(searchTerm);
+                                const normalizedName = normalizeText(
+                                  inscricao.nome
+                                );
+                                const normalizedEmail = normalizeText(
+                                  inscricao.email
+                                );
+                                const normalizedCPF = normalizeCPF(
+                                  inscricao.cpf
+                                );
+                                const searchCPF = normalizeCPF(searchTerm);
+
+                                return (
+                                  normalizedName.includes(normalizedTerm) ||
+                                  normalizedEmail.includes(normalizedTerm) ||
+                                  (searchCPF.length >= 3 &&
+                                    normalizedCPF.includes(searchCPF))
+                                );
+                              })
+                            : allInscricoes;
+
+                          const filteredData = applyFilters(
+                            currentData,
+                            newFilters
+                          );
+                          setFilteredInscricoes(filteredData);
+                        }}
+                        className={`text-xs h-7 ${
+                          activeFilters.escolaridade.includes(esc)
+                            ? "bg-blue-600 hover:bg-blue-700 border-blue-600"
+                            : "border-blue-200 text-blue-700 hover:bg-blue-50"
+                        }`}
+                      >
+                        {activeFilters.escolaridade.includes(esc) && (
+                          <Check className="w-3 h-3 mr-1" />
+                        )}
+                        {esc}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Localização - Inputs compactos */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                    <label className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      Localização
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Cidade..."
+                      value={activeFilters.cidade}
+                      onChange={(e) => {
+                        const newFilters = {
+                          ...activeFilters,
+                          cidade: e.target.value,
+                        };
+                        setActiveFilters(newFilters);
+
+                        // Aplicar filtros com debounce simples
+                        setTimeout(() => {
+                          const currentData = searchTerm
+                            ? allInscricoes.filter((inscricao) => {
+                                const normalizedTerm =
+                                  normalizeText(searchTerm);
+                                const normalizedName = normalizeText(
+                                  inscricao.nome
+                                );
+                                const normalizedEmail = normalizeText(
+                                  inscricao.email
+                                );
+                                const normalizedCPF = normalizeCPF(
+                                  inscricao.cpf
+                                );
+                                const searchCPF = normalizeCPF(searchTerm);
+
+                                return (
+                                  normalizedName.includes(normalizedTerm) ||
+                                  normalizedEmail.includes(normalizedTerm) ||
+                                  (searchCPF.length >= 3 &&
+                                    normalizedCPF.includes(searchCPF))
+                                );
+                              })
+                            : allInscricoes;
+
+                          const filteredData = applyFilters(
+                            currentData,
+                            newFilters
+                          );
+                          setFilteredInscricoes(filteredData);
+                        }, 300);
+                      }}
+                      className="text-xs h-7 flex-1"
+                    />
+                    <Input
+                      placeholder="Estado..."
+                      value={activeFilters.estado}
+                      onChange={(e) => {
+                        const newFilters = {
+                          ...activeFilters,
+                          estado: e.target.value,
+                        };
+                        setActiveFilters(newFilters);
+
+                        // Aplicar filtros com debounce simples
+                        setTimeout(() => {
+                          const currentData = searchTerm
+                            ? allInscricoes.filter((inscricao) => {
+                                const normalizedTerm =
+                                  normalizeText(searchTerm);
+                                const normalizedName = normalizeText(
+                                  inscricao.nome
+                                );
+                                const normalizedEmail = normalizeText(
+                                  inscricao.email
+                                );
+                                const normalizedCPF = normalizeCPF(
+                                  inscricao.cpf
+                                );
+                                const searchCPF = normalizeCPF(searchTerm);
+
+                                return (
+                                  normalizedName.includes(normalizedTerm) ||
+                                  normalizedEmail.includes(normalizedTerm) ||
+                                  (searchCPF.length >= 3 &&
+                                    normalizedCPF.includes(searchCPF))
+                                );
+                              })
+                            : allInscricoes;
+
+                          const filteredData = applyFilters(
+                            currentData,
+                            newFilters
+                          );
+                          setFilteredInscricoes(filteredData);
+                        }, 300);
+                      }}
+                      className="text-xs h-7 flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumo dos filtros ativos - Compacto */}
+              {Object.values(activeFilters).some((filter) =>
+                Array.isArray(filter) ? filter.length > 0 : filter !== ""
+              ) && (
+                <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1">
+                      <Filter className="w-3 h-3 text-blue-600" />
+                      <span className="font-medium text-blue-900 text-xs">
+                        {filteredInscricoes.length} resultado(s)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {activeFilters.status.map((status) => (
+                      <Badge
+                        key={status}
+                        variant="secondary"
+                        className="bg-green-100 text-green-800 text-xs h-5 px-2"
+                      >
+                        {status}
+                      </Badge>
+                    ))}
+                    {activeFilters.curso.map((curso) => (
+                      <Badge
+                        key={curso}
+                        variant="secondary"
+                        className="bg-purple-100 text-purple-800 text-xs h-5 px-2"
+                      >
+                        {curso}
+                      </Badge>
+                    ))}
+                    {activeFilters.escolaridade.map((esc) => (
+                      <Badge
+                        key={esc}
+                        variant="secondary"
+                        className="bg-blue-100 text-blue-800 text-xs h-5 px-2"
+                      >
+                        {esc}
+                      </Badge>
+                    ))}
+                    {activeFilters.cidade && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-amber-100 text-amber-800 text-xs h-5 px-2"
+                      >
+                        📍 {activeFilters.cidade}
+                      </Badge>
+                    )}
+                    {activeFilters.estado && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-amber-100 text-amber-800 text-xs h-5 px-2"
+                      >
+                        🏛️ {activeFilters.estado}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Lista de Inscrições ou Monitores - Sem Header */}
         <Card className="bg-white shadow-lg border-0" ref={inscricoesListRef}>
