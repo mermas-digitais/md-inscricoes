@@ -770,9 +770,10 @@ export function ExportModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="w-[90vw] max-w-[90vw] max-h-[90vh] flex flex-col bg-gradient-to-br from-white to-gray-50 p-0 overflow-hidden"
+        className="w-[60vw] max-w-[60vw] max-h-[90vh] flex flex-col bg-gradient-to-br from-white to-gray-50 p-0 overflow-hidden"
+        style={{ maxWidth: "60vw", width: "60vw", minWidth: "50vw" }}
       >
-        <DialogHeader className="border-b border-gray-200 px-8 py-6 flex-shrink-0 bg-white">
+        <DialogHeader className="border-b border-gray-200 px-6 py-6 flex-shrink-0 bg-white">
           <DialogTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center shadow-md">
               <Download className="w-5 h-5 text-white" />
@@ -786,8 +787,8 @@ export function ExportModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-10">
-          <div className="space-y-8 py-8">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-6">
+          <div className="space-y-6 py-6">
             {/* Header de filtros */}
             <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50">
               <CardHeader className="pb-3">
@@ -1155,7 +1156,7 @@ export function ExportModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-gray-200 bg-white px-1 py-6 flex-shrink-0">
+        <DialogFooter className="border-t border-gray-200 bg-white px-8 py-6 flex-shrink-0">
           <div className="flex flex-col sm:flex-row gap-4 w-full">
             {/* Botão Cancelar - separado à esquerda */}
             <div className="flex sm:flex-1">

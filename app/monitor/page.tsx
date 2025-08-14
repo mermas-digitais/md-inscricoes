@@ -56,6 +56,7 @@ import { ModalNovaInscricao } from "@/components/ui/modal-nova-inscricao";
 import { ModalNovoMonitor } from "@/components/ui/modal-novo-monitor";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { ExportModal } from "@/components/ui/export-modal";
+import { EmailModal } from "@/components/ui/email-modal";
 
 interface Inscricao {
   id: string;
@@ -222,6 +223,7 @@ export default function MonitorPage() {
     useState(false);
   const [isModalNovoMonitorOpen, setIsModalNovoMonitorOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   // Estados para dados completos (estatísticas e busca)
   const [allInscricoes, setAllInscricoes] = useState<Inscricao[]>([]);
@@ -2095,8 +2097,8 @@ export default function MonitorPage() {
                         className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 hover:shadow-lg hover:shadow-emerald-200/50 px-6 py-4 rounded-2xl text-sm font-semibold transition-all duration-300 shadow-md border-0 hover:scale-[1.02] backdrop-blur-sm"
                       >
                         <Plus className="w-4 h-4 mr-2" />
-                        <span className="hidden sm:inline">Adicionar</span>
-                        <span className="sm:hidden">Novo</span>
+                        <span className="hidden sm:inline">Ações</span>
+                        <span className="sm:hidden">Ações</span>
                         <ChevronDown className="w-4 h-4 ml-2" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -2108,10 +2110,10 @@ export default function MonitorPage() {
                         {/* Header do menu */}
                         <div className="px-3 py-2 mb-3">
                           <h3 className="font-semibold text-gray-900 text-sm">
-                            Adicionar Novo
+                            Ações disponíveis
                           </h3>
                           <p className="text-xs text-gray-500 mt-1">
-                            Escolha o que deseja cadastrar
+                            Escolha o que deseja fazer
                           </p>
                         </div>
 
@@ -2162,6 +2164,23 @@ export default function MonitorPage() {
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5">
                               Gerar PDF ou planilha Excel
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsEmailModalOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50 hover:text-purple-700 transition-all duration-200 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-100 to-violet-100 flex items-center justify-center shadow-sm">
+                            <Mail className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Enviar Email
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Email em massa com filtros
                             </div>
                           </div>
                         </DropdownMenuItem>
@@ -2484,6 +2503,13 @@ export default function MonitorPage() {
       <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
+        allInscricoes={allInscricoes}
+        monitorName={monitorName}
+      />
+
+      <EmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
         allInscricoes={allInscricoes}
         monitorName={monitorName}
       />
