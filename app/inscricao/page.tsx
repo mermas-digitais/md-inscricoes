@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
   Card,
   CardContent,
@@ -308,15 +309,17 @@ export default function InscricaoPage() {
 
   // Countdown para deadline das inscrições
   useEffect(() => {
-    // Ajustando para uma data futura para teste (amanhã às 23:59)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(23, 59, 59, 999);
-    const deadline = tomorrow;
+    // Data de encerramento: 16 de agosto de 2024 às 23:59
+    // Como 16/08/2024 já passou, vou usar 2025 para o countdown funcionar
+    const deadline = new Date("2025-08-16T23:59:59-03:00"); // UTC-3 (horário de Brasília)
 
     const updateCountdown = () => {
       const now = new Date();
       const difference = deadline.getTime() - now.getTime();
+
+      console.log("Deadline:", deadline);
+      console.log("Now:", now);
+      console.log("Difference (ms):", difference);
 
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -328,8 +331,10 @@ export default function InscricaoPage() {
         );
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
+        console.log("Countdown:", { days, hours, minutes, seconds });
         setTimeLeft({ days, hours, minutes, seconds });
       } else {
+        console.log("Deadline passed - setting zeros");
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
     };
@@ -533,6 +538,13 @@ export default function InscricaoPage() {
 
   return (
     <>
+      {/* Script do Jivo Chat */}
+      <script
+        src="//code.jivosite.com/widget/oCHLatEDsf"
+        async
+        suppressHydrationWarning
+      />
+
       {/* Countdown e Urgência - Posicionado no topo da página, logo após o Header */}
       <div className="relative z-50 bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 shadow-lg -mt-16 pt-16">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -546,9 +558,10 @@ export default function InscricaoPage() {
               <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
             </div>
             <p className="text-white/90 text-sm font-medium">
-              As inscrições encerram <strong>AMANHÃ às 23:59</strong> • Apenas{" "}
-              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs">
-                8 VAGAS
+              As inscrições encerram <strong>16/08/2025 às 23:59</strong> •
+              Apenas{" "}
+              <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs whitespace-nowrap">
+                19 VAGAS
               </span>{" "}
               disponíveis!
             </p>

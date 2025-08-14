@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send confirmation email
+    // Send appropriate email based on status
     try {
       const emailData = {
         email: data.email,
@@ -89,12 +89,18 @@ export async function POST(request: NextRequest) {
         cpf: data.cpf,
       };
 
-      console.log("Sending confirmation email with data:", emailData);
+      console.log("Sending email with data:", emailData, "Status:", status);
 
-      const confirmationResponse = await fetch(
+      // Choose the correct email API based on status
+      const emailEndpoint =
+        status === "EXCEDENTE"
+          ? "/api/send-excedente"
+          : "/api/send-confirmation";
+
+      const emailResponse = await fetch(
         `${
           process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-        }/api/send-confirmation`,
+        }${emailEndpoint}`,
         {
           method: "POST",
           headers: {
@@ -104,19 +110,25 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      if (!confirmationResponse.ok) {
-        const errorText = await confirmationResponse.text();
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
         console.error(
-          "Failed to send confirmation email:",
-          confirmationResponse.status,
+          `Failed to send ${
+            status === "EXCEDENTE" ? "excedente" : "confirmation"
+          } email:`,
+          emailResponse.status,
           errorText
         );
         // Don't fail the inscription if email fails
       } else {
-        console.log("Confirmation email sent successfully");
+        console.log(
+          `${
+            status === "EXCEDENTE" ? "Excedente" : "Confirmation"
+          } email sent successfully`
+        );
       }
     } catch (emailError) {
-      console.error("Error sending confirmation email:", emailError);
+      console.error("Error sending email:", emailError);
       // Don't fail the inscription if email fails
     }
 

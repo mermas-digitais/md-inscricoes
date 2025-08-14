@@ -35,34 +35,55 @@ interface InscricaoData {
   [key: string]: any;
 }
 
-function replaceVariables(template: string, data: InscricaoData): string {
+function replaceVariables(template: string, data: any): string {
   let result = template;
 
   // Substituir variáveis padrão
   const variables = {
     "{{nome}}": data.nome || "",
     "{{email}}": data.email || "",
-    "{{telefone}}": data.telefone || "",
-    "{{endereco}}": data.endereco || "",
+    "{{telefone_whatsapp}}": data.telefone_whatsapp || data.telefone || "",
+    "{{curso}}": data.curso || "",
+    "{{escolaridade}}": data.escolaridade || "",
+    "{{escola}}": data.escola || "",
+    "{{ano_escolar}}": data.ano_escolar || "",
+    "{{cpf}}": data.cpf || "",
+    "{{endereco}}":
+      data.endereco ||
+      `${data.logradouro || ""}, ${data.numero || ""}${
+        data.complemento ? ` - ${data.complemento}` : ""
+      } - ${data.bairro || ""}, ${data.cidade || ""} - ${
+        data.estado || ""
+      }, CEP: ${data.cep || ""}`,
+    "{{logradouro}}": data.logradouro || "",
+    "{{numero}}": data.numero || "",
+    "{{complemento}}": data.complemento || "",
     "{{bairro}}": data.bairro || "",
     "{{cep}}": data.cep || "",
     "{{cidade}}": data.cidade || "",
     "{{estado}}": data.estado || "",
-    "{{data_nascimento}}": data.data_nascimento || "",
-    "{{escolaridade}}": data.escolaridade || "",
+    "{{data_nascimento}}": data.data_nascimento
+      ? new Date(data.data_nascimento).toLocaleDateString("pt-BR")
+      : "",
+    "{{nome_responsavel}}": data.nome_responsavel || "",
+    "{{status}}": data.status || "",
     "{{situacao_trabalho}}": data.situacao_trabalho || "",
     "{{renda_familiar}}": data.renda_familiar || "",
     "{{motivacao}}": data.motivacao || "",
     "{{experiencia_tech}}": data.experiencia_tech || "",
     "{{disponibilidade}}": data.disponibilidade || "",
     "{{como_conheceu}}": data.como_conheceu || "",
-    "{{data_inscricao}}":
-      new Date(data.created_at).toLocaleDateString("pt-BR") || "",
+    "{{data_inscricao}}": data.created_at
+      ? new Date(data.created_at).toLocaleDateString("pt-BR")
+      : "",
   };
 
   // Substituir todas as variáveis
   Object.entries(variables).forEach(([variable, value]) => {
-    result = result.replace(new RegExp(variable, "g"), value);
+    result = result.replace(
+      new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+      value
+    );
   });
 
   return result;
@@ -196,6 +217,7 @@ export async function POST(request: NextRequest) {
       textContent,
       recipients = "all",
       filters = {},
+      monitorEmail,
     } = await request.json();
 
     // Validação básica
@@ -206,34 +228,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar inscrições baseado nos filtros
-    let query = supabase.from("inscricoes").select("*");
+    let inscricoes;
 
-    // Aplicar filtros se fornecidos
-    if (filters.escolaridade) {
-      query = query.eq("escolaridade", filters.escolaridade);
-    }
-    if (filters.situacao_trabalho) {
-      query = query.eq("situacao_trabalho", filters.situacao_trabalho);
-    }
-    if (filters.cidade) {
-      query = query.ilike("cidade", `%${filters.cidade}%`);
-    }
-    if (filters.estado) {
-      query = query.eq("estado", filters.estado);
-    }
-    if (filters.experiencia_tech) {
-      query = query.eq("experiencia_tech", filters.experiencia_tech);
-    }
+    // Se recipients é um array de objetos, usar diretamente
+    if (Array.isArray(recipients) && recipients.length > 0) {
+      inscricoes = recipients.map((r) => r.data || r);
+    } else {
+      // Buscar inscrições do banco baseado nos filtros
+      let query = supabase.from("inscricoes").select("*");
 
-    const { data: inscricoes, error } = await query;
+      // Aplicar filtros se fornecidos
+      if (filters.escolaridade) {
+        query = query.eq("escolaridade", filters.escolaridade);
+      }
+      if (filters.situacao_trabalho) {
+        query = query.eq("situacao_trabalho", filters.situacao_trabalho);
+      }
+      if (filters.cidade) {
+        query = query.ilike("cidade", `%${filters.cidade}%`);
+      }
+      if (filters.estado) {
+        query = query.eq("estado", filters.estado);
+      }
+      if (filters.experiencia_tech) {
+        query = query.eq("experiencia_tech", filters.experiencia_tech);
+      }
 
-    if (error) {
-      console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Erro ao buscar inscrições" },
-        { status: 500 }
-      );
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Database error:", error);
+        return NextResponse.json(
+          { error: "Erro ao buscar inscrições" },
+          { status: 500 }
+        );
+      }
+
+      inscricoes = data;
     }
 
     if (!inscricoes || inscricoes.length === 0) {
@@ -278,7 +309,6 @@ export async function POST(request: NextRequest) {
 
     // Enviar emails
     const results = [];
-    const errors = [];
 
     for (const inscricao of inscricoes) {
       try {
@@ -321,9 +351,10 @@ export async function POST(request: NextRequest) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (emailError) {
         console.error(`Error sending email to ${inscricao.email}:`, emailError);
-        errors.push({
+        results.push({
           email: inscricao.email,
           nome: inscricao.nome,
+          success: false,
           error:
             emailError instanceof Error
               ? emailError.message
@@ -335,13 +366,15 @@ export async function POST(request: NextRequest) {
     // Fechar transporter
     transporter.close();
 
+    const successCount = results.filter((r) => r.success).length;
+    const errorCount = results.filter((r) => !r.success).length;
+
     return NextResponse.json({
       success: true,
       totalRecipients: inscricoes.length,
-      successCount: results.length,
-      errorCount: errors.length,
+      successCount,
+      errorCount,
       results,
-      errors,
     });
   } catch (error) {
     console.error("Error sending mass email:", error);

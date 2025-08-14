@@ -1,8 +1,6 @@
 "use client";
 
-import type React from "react";
-
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,10 +46,17 @@ import {
   ToggleLeft,
   ToggleRight,
   Menu,
+  Edit,
+  Trash2,
+  MoreVertical,
+  FileDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ModalNovaInscricao } from "@/components/ui/modal-nova-inscricao";
 import { ModalNovoMonitor } from "@/components/ui/modal-novo-monitor";
+import { DataPagination } from "@/components/ui/data-pagination";
+import { ExportModal } from "@/components/ui/export-modal";
+import { EmailModal } from "@/components/ui/email-modal";
 
 interface Inscricao {
   id: string;
@@ -84,10 +89,80 @@ export default function MonitorPage() {
   const router = useRouter();
   const monitorEmail = searchParams.get("email");
 
-  const [step, setStep] = useState<"email" | "otp" | "dashboard">("email");
+  // Função para formatar data corretamente (evita problemas de fuso horário)
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+
+    try {
+      // Método mais direto: forçar apenas a parte da data
+      const dateOnly = dateString.split("T")[0]; // Remove hora se existir
+
+      // Verificar se está no formato YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+        return dateString;
+      }
+
+      // Split manual e reconstrução como string brasileira
+      const [year, month, day] = dateOnly.split("-");
+      const brazilianFormat = `${day}/${month}/${year}`;
+
+      return brazilianFormat;
+    } catch (error) {
+      console.error("Erro ao formatar data:", error, "Input:", dateString);
+      return dateString; // Retorna original em caso de erro
+    }
+  };
+
+  const [step, setStep] = useState<"email" | "otp" | "dashboard">(() => {
+    // Verificar localStorage no momento da inicialização
+    if (typeof window !== "undefined") {
+      try {
+        const sessionData = localStorage.getItem("monitorSession");
+        if (sessionData) {
+          const { timestamp } = JSON.parse(sessionData);
+          const now = Date.now();
+          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
+          if (now - timestamp < sessionTimeout) {
+            return "dashboard";
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao verificar step do localStorage:", error);
+      }
+    }
+    return "email";
+  });
   const [email, setEmail] = useState(monitorEmail || "");
-  const [monitorName, setMonitorName] = useState("");
-  const [monitorRole, setMonitorRole] = useState<"MONITOR" | "ADM">("MONITOR");
+  const [monitorName, setMonitorName] = useState(() => {
+    // Verificar localStorage no momento da inicialização
+    if (typeof window !== "undefined") {
+      try {
+        const sessionData = localStorage.getItem("monitorSession");
+        if (sessionData) {
+          const { nome } = JSON.parse(sessionData);
+          return nome || "";
+        }
+      } catch (error) {
+        console.error("Erro ao carregar nome do localStorage:", error);
+      }
+    }
+    return "";
+  });
+  const [monitorRole, setMonitorRole] = useState<"MONITOR" | "ADM">(() => {
+    // Verificar localStorage no momento da inicialização
+    if (typeof window !== "undefined") {
+      try {
+        const sessionData = localStorage.getItem("monitorSession");
+        if (sessionData) {
+          const { role } = JSON.parse(sessionData);
+          return role || "MONITOR";
+        }
+      } catch (error) {
+        console.error("Erro ao carregar role do localStorage:", error);
+      }
+    }
+    return "MONITOR";
+  });
   const [viewMode, setViewMode] = useState<"inscricoes" | "monitores">(
     "inscricoes"
   );
@@ -105,7 +180,23 @@ export default function MonitorPage() {
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [filteredInscricoes, setFilteredInscricoes] = useState<Inscricao[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Verificar localStorage no momento da inicialização
+    if (typeof window !== "undefined") {
+      try {
+        const sessionData = localStorage.getItem("monitorSession");
+        if (sessionData) {
+          const { timestamp } = JSON.parse(sessionData);
+          const now = Date.now();
+          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
+          return now - timestamp < sessionTimeout;
+        }
+      } catch (error) {
+        console.error("Erro ao verificar autenticação do localStorage:", error);
+      }
+    }
+    return false;
+  });
   const [sessionTimeLeft, setSessionTimeLeft] = useState<number>(0);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
@@ -113,10 +204,31 @@ export default function MonitorPage() {
   const [isLoadingInscricoes, setIsLoadingInscricoes] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
+  // Estados para paginação
+  const [inscricoesPagination, setInscricoesPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 20,
+  });
+  const [monitoresPagination, setMonitoresPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10,
+  });
+
   // Estados para controlar os modais
   const [isModalNovaInscricaoOpen, setIsModalNovaInscricaoOpen] =
     useState(false);
   const [isModalNovoMonitorOpen, setIsModalNovoMonitorOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+
+  // Estados para dados completos (estatísticas e busca)
+  const [allInscricoes, setAllInscricoes] = useState<Inscricao[]>([]);
+  const [allMonitores, setAllMonitores] = useState<any[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   // Ref para scroll automático para a lista
   const inscricoesListRef = useRef<HTMLDivElement>(null);
@@ -142,6 +254,7 @@ export default function MonitorPage() {
             role: sessionRole,
             timestamp,
           } = JSON.parse(sessionData);
+
           const now = Date.now();
           const sessionTimeout = 30 * 60 * 1000; // 30 minutos em millisegundos
 
@@ -150,14 +263,16 @@ export default function MonitorPage() {
             setIsAuthenticated(true);
             setEmail(sessionEmail);
             setMonitorName(sessionNome || "");
-            setMonitorRole(sessionRole || "MONITOR");
+            setMonitorRole(sessionRole || "MONITOR"); // Manter fallback por segurança
             setStep("dashboard");
+
             return true;
           } else {
             // Sessão expirada, limpar localStorage
             localStorage.removeItem("monitorSession");
           }
         } catch (error) {
+          console.error("Erro ao processar sessionData:", error);
           localStorage.removeItem("monitorSession");
         }
       }
@@ -185,18 +300,20 @@ export default function MonitorPage() {
           role: sessionRole,
           timestamp,
         } = JSON.parse(sessionData);
+
         const now = Date.now();
         const sessionTimeout = 30 * 60 * 1000;
 
         if (now - timestamp < sessionTimeout && sessionEmail === monitorEmail) {
           setIsAuthenticated(true);
           setMonitorName(sessionNome || "");
-          setMonitorRole(sessionRole || "MONITOR");
+          setMonitorRole(sessionRole || "MONITOR"); // Manter fallback por segurança
           setStep("dashboard");
         } else {
           setStep("otp");
         }
       } catch (error) {
+        console.error("Erro ao processar sessionData com email na URL:", error);
         setStep("otp");
       }
     } else {
@@ -204,10 +321,11 @@ export default function MonitorPage() {
     }
   }, [isClient, monitorEmail]);
 
-  // Carregar inscrições quando entrar no dashboard
+  // Carregar dados quando entrar no dashboard
   useEffect(() => {
     if (step === "dashboard" && isAuthenticated) {
       loadInscricoes();
+      loadAllInscricoes(); // Carregar dados completos também
     }
   }, [step, isAuthenticated]);
 
@@ -227,10 +345,17 @@ export default function MonitorPage() {
               // Sessão expirada
               handleLogout();
             } else {
-              setSessionTimeLeft(timeLeft);
+              // Só atualizar se o valor mudou significativamente (diferença > 500ms)
+              setSessionTimeLeft((prev) => {
+                const diff = Math.abs(prev - timeLeft);
+                return diff > 500 ? timeLeft : prev;
+              });
 
               // Aviso quando restar 5 minutos
-              if (timeLeft === 5 * 60 * 1000) {
+              if (
+                timeLeft <= 5 * 60 * 1000 &&
+                timeLeft > 5 * 60 * 1000 - 1000
+              ) {
                 toast({
                   title: "Sessão expirando",
                   description:
@@ -264,16 +389,18 @@ export default function MonitorPage() {
 
   // Funções para lidar com o sucesso dos modais
   const handleNovaInscricaoSuccess = () => {
-    // Recarregar as inscrições se estivermos na view de inscrições
+    // Recarregar dados completos e paginados
+    loadAllInscricoes();
     if (viewMode === "inscricoes") {
-      window.location.reload(); // Método simples para recarregar os dados
+      loadInscricoes();
     }
   };
 
   const handleNovoMonitorSuccess = () => {
-    // Recarregar os monitores se estivermos na view de monitores
+    // Recarregar dados completos e paginados
+    loadAllMonitores();
     if (viewMode === "monitores") {
-      window.location.reload(); // Método simples para recarregar os dados
+      loadMonitores();
     }
   };
 
@@ -342,6 +469,7 @@ export default function MonitorPage() {
 
       if (response.ok) {
         const data = await response.json();
+
         if (data.nome) {
           setMonitorName(data.nome);
         }
@@ -356,6 +484,7 @@ export default function MonitorPage() {
           role: data.role || "MONITOR",
           timestamp: Date.now(),
         };
+
         localStorage.setItem("monitorSession", JSON.stringify(sessionData));
 
         setIsAuthenticated(true);
@@ -399,45 +528,820 @@ export default function MonitorPage() {
     }
   };
 
-  const loadInscricoes = async () => {
-    setIsLoadingInscricoes(true);
+  const loadInscricoes = useCallback(
+    async (page: number = 1) => {
+      setIsLoadingInscricoes(true);
+      try {
+        const response = await fetch(
+          `/api/monitor/inscricoes?page=${page}&limit=${inscricoesPagination.itemsPerPage}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setInscricoes(data.data || []);
+          setFilteredInscricoes(data.data || []);
+
+          // Atualizar informações de paginação
+          if (data.pagination) {
+            setInscricoesPagination((prev) => ({
+              ...prev,
+              currentPage: data.pagination.currentPage,
+              totalPages: data.pagination.totalPages,
+              totalItems: data.pagination.totalItems,
+            }));
+          }
+        }
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar inscrições.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingInscricoes(false);
+      }
+    },
+    [inscricoesPagination.itemsPerPage]
+  );
+
+  // Função para carregar monitores
+  const loadMonitores = useCallback(
+    async (page: number = 1) => {
+      try {
+        const response = await fetch(
+          `/api/monitor/monitores?page=${page}&limit=${monitoresPagination.itemsPerPage}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMonitores(data.data || []);
+          setFilteredMonitores(data.data || []);
+
+          // Atualizar informações de paginação
+          if (data.pagination) {
+            setMonitoresPagination((prev) => ({
+              ...prev,
+              currentPage: data.pagination.currentPage,
+              totalPages: data.pagination.totalPages,
+              totalItems: data.pagination.totalItems,
+            }));
+          }
+        } else {
+          toast({
+            title: "Erro",
+            description: "Erro ao carregar lista de monitores",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading monitores:", error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar monitores",
+          variant: "destructive",
+        });
+      }
+    },
+    [monitoresPagination.itemsPerPage]
+  );
+
+  // Funções para carregar dados completos (para estatísticas e busca)
+  const loadAllInscricoes = useCallback(async () => {
+    setIsLoadingStats(true);
     try {
-      const response = await fetch("/api/monitor/inscricoes");
+      const response = await fetch("/api/monitor/stats/inscricoes");
       if (response.ok) {
         const data = await response.json();
-        setInscricoes(data);
-        setFilteredInscricoes(data);
+        setAllInscricoes(data || []);
       }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar inscrições.",
-        variant: "destructive",
-      });
+      console.error("Error loading all inscricoes:", error);
     } finally {
-      setIsLoadingInscricoes(false);
+      setIsLoadingStats(false);
     }
-  };
+  }, []);
+
+  const loadAllMonitores = useCallback(async () => {
+    try {
+      const response = await fetch("/api/monitor/stats/monitores");
+      if (response.ok) {
+        const data = await response.json();
+        setAllMonitores(data || []);
+      }
+    } catch (error) {
+      console.error("Error loading all monitores:", error);
+    }
+  }, []);
 
   // Carregar dados quando a visualização mudar
   useEffect(() => {
     if (isAuthenticated && step === "dashboard") {
+      // Carregar dados completos para estatísticas (sempre)
+      loadAllInscricoes();
+      loadAllMonitores();
+
+      // Carregar dados paginados para exibição
       if (viewMode === "inscricoes") {
         loadInscricoes();
       } else if (viewMode === "monitores") {
         loadMonitores();
       }
     }
-  }, [isAuthenticated, step, viewMode]);
+  }, [
+    isAuthenticated,
+    step,
+    viewMode,
+    loadInscricoes,
+    loadMonitores,
+    loadAllInscricoes,
+    loadAllMonitores,
+  ]);
 
   // Limpar busca quando mudar o modo de visualização
   useEffect(() => {
-    if (searchTerm) {
-      setSearchTerm("");
+    setSearchTerm("");
+    // Não usar os arrays diretamente aqui para evitar loops
+    if (viewMode === "inscricoes") {
       setFilteredInscricoes(inscricoes);
+    } else {
       setFilteredMonitores(monitores);
     }
   }, [viewMode]);
+
+  // Funções auxiliares - DEVEM estar antes dos early returns para evitar violação das Rules of Hooks
+  function normalizeText(text: string) {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function normalizeCPF(cpf: string) {
+    // Remove todos os caracteres não numéricos
+    return cpf.replace(/\D/g, "");
+  }
+
+  function normalizePhone(phone: string) {
+    // Remove todos os caracteres não numéricos
+    return phone.replace(/\D/g, "");
+  }
+
+  const handleSearch = useCallback(
+    (term: string) => {
+      setSearchTerm(term);
+
+      // Limpar timeout anterior se existir
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      if (!term.trim()) {
+        setFilteredInscricoes(inscricoes);
+        setFilteredMonitores(monitores);
+        return;
+      }
+
+      const normalizedTerm = normalizeText(term);
+
+      // Se estiver no modo monitores, filtrar monitores
+      if (viewMode === "monitores") {
+        // Função para calcular o score de relevância para nomes de monitores
+        const getNameScore = (name: string, searchTerm: string): number => {
+          const normalizedName = normalizeText(name);
+          const words = normalizedName.split(" ");
+
+          // Score 1000: Correspondência exata no início do nome completo
+          if (normalizedName.startsWith(searchTerm)) {
+            return 1000;
+          }
+
+          // Score 500: Correspondência exata no início de qualquer palavra
+          for (const word of words) {
+            if (word.startsWith(searchTerm)) {
+              return 500;
+            }
+          }
+
+          // Score 100: Correspondência parcial em qualquer lugar
+          if (normalizedName.includes(searchTerm)) {
+            return 100;
+          }
+
+          return 0;
+        };
+
+        const filteredMonitors = allMonitores
+          .filter((monitor) => {
+            // Busca por nome (com score)
+            const nameScore = getNameScore(monitor.nome, normalizedTerm);
+            const nameMatch = nameScore > 0;
+
+            // Busca por email
+            const normalizedEmail = normalizeText(monitor.email);
+            const emailMatch = normalizedEmail.includes(normalizedTerm);
+
+            // Busca por role
+            const normalizedRole = normalizeText(monitor.role || "");
+            const roleMatch = normalizedRole.includes(normalizedTerm);
+
+            // Adicionar score ao monitor para ordenação posterior
+            (monitor as any)._searchScore = nameScore;
+
+            return nameMatch || emailMatch || roleMatch;
+          })
+          .sort((a, b) => {
+            // Ordenar por score de nome (maior score primeiro)
+            const scoreA = (a as any)._searchScore || 0;
+            const scoreB = (b as any)._searchScore || 0;
+
+            if (scoreA !== scoreB) {
+              return scoreB - scoreA; // Ordem decrescente de score
+            }
+
+            // Se scores iguais, ordenar alfabeticamente por nome
+            return a.nome.localeCompare(b.nome);
+          });
+
+        setFilteredMonitores(filteredMonitors);
+      } else {
+        // Se estiver no modo inscrições, filtrar inscrições usando dados completos
+        const normalizedCPFTerm = normalizeCPF(term);
+        const normalizedPhoneTerm = normalizePhone(term);
+
+        // Função para calcular o score de relevância para nomes
+        const getNameScore = (name: string, searchTerm: string): number => {
+          const normalizedName = normalizeText(name);
+          const words = normalizedName.split(" ");
+
+          // Score 1000: Correspondência exata no início do nome completo
+          if (normalizedName.startsWith(searchTerm)) {
+            return 1000;
+          }
+
+          // Score 500: Correspondência exata no início de qualquer palavra
+          for (const word of words) {
+            if (word.startsWith(searchTerm)) {
+              return 500;
+            }
+          }
+
+          // Score 100: Correspondência parcial em qualquer lugar
+          if (normalizedName.includes(searchTerm)) {
+            return 100;
+          }
+
+          return 0;
+        };
+
+        const filtered = allInscricoes
+          .filter((inscricao) => {
+            // Busca por nome (com score)
+            const nameScore = getNameScore(inscricao.nome, normalizedTerm);
+            const nameMatch = nameScore > 0;
+
+            // Busca por email (flexível - contém o termo)
+            const normalizedEmail = normalizeText(inscricao.email);
+            const emailMatch = normalizedEmail.includes(normalizedTerm);
+
+            // Busca por CPF (sem pontuação)
+            const normalizedCPF = normalizeCPF(inscricao.cpf);
+            const cpfMatch =
+              normalizedCPFTerm.length >= 3 &&
+              normalizedCPF.includes(normalizedCPFTerm);
+
+            // Busca por telefone (sem pontuação)
+            const normalizedPhone = normalizePhone(
+              inscricao.telefone_whatsapp || ""
+            );
+            const phoneMatch =
+              normalizedPhoneTerm.length >= 4 &&
+              normalizedPhone.includes(normalizedPhoneTerm);
+
+            // Busca por escola/escolaridade
+            const normalizedEscola = normalizeText(
+              inscricao.escolaridade || ""
+            );
+            const escolaMatch = normalizedEscola.includes(normalizedTerm);
+
+            // Busca por ano escolar
+            const normalizedAno = normalizeText(inscricao.ano_escolar || "");
+            const anoMatch = normalizedAno.includes(normalizedTerm);
+
+            // Busca por curso
+            const normalizedCurso = normalizeText(inscricao.curso || "");
+            const cursoMatch = normalizedCurso.includes(normalizedTerm);
+
+            // Busca por status
+            const normalizedStatus = normalizeText(inscricao.status || "");
+            const statusMatch = normalizedStatus.includes(normalizedTerm);
+
+            // Adicionar score à inscrição para ordenação posterior
+            (inscricao as any)._searchScore = nameScore;
+
+            return (
+              nameMatch ||
+              emailMatch ||
+              cpfMatch ||
+              phoneMatch ||
+              escolaMatch ||
+              anoMatch ||
+              cursoMatch ||
+              statusMatch
+            );
+          })
+          .sort((a, b) => {
+            // Ordenar por score de nome (maior score primeiro)
+            const scoreA = (a as any)._searchScore || 0;
+            const scoreB = (b as any)._searchScore || 0;
+
+            if (scoreA !== scoreB) {
+              return scoreB - scoreA; // Ordem decrescente de score
+            }
+
+            // Se scores iguais, ordenar alfabeticamente por nome
+            return a.nome.localeCompare(b.nome);
+          });
+
+        setFilteredInscricoes(filtered);
+      }
+
+      // Scroll automático para a lista quando há busca - com debounce
+      if (term.trim() && inscricoesListRef.current) {
+        scrollTimeoutRef.current = setTimeout(() => {
+          inscricoesListRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 800); // Espera 800ms após parar de digitar
+      }
+    },
+    [viewMode, allMonitores, allInscricoes, monitores, inscricoes]
+  );
+
+  const handleStatusChange = useCallback(
+    async (id: string, newStatus: "INSCRITA" | "MATRICULADA" | "CANCELADA") => {
+      try {
+        const response = await fetch("/api/monitor/status", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: newStatus }),
+        });
+
+        if (response.ok) {
+          // Atualizar dados paginados
+          setInscricoes((prev) =>
+            prev.map((inscricao) =>
+              inscricao.id === id
+                ? { ...inscricao, status: newStatus }
+                : inscricao
+            )
+          );
+          setFilteredInscricoes((prev) =>
+            prev.map((inscricao) =>
+              inscricao.id === id
+                ? { ...inscricao, status: newStatus }
+                : inscricao
+            )
+          );
+          // Atualizar dados completos para estatísticas
+          setAllInscricoes((prev) =>
+            prev.map((inscricao) =>
+              inscricao.id === id
+                ? { ...inscricao, status: newStatus }
+                : inscricao
+            )
+          );
+          toast({
+            title: "Status atualizado",
+            description: `Status alterado para ${newStatus}`,
+            variant: "success",
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: "Erro ao atualizar status.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar status.",
+          variant: "destructive",
+        });
+      }
+    },
+    []
+  );
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("monitorSession");
+    setIsAuthenticated(false);
+    setStep("email");
+    setEmail("");
+    setMonitorName("");
+    setAccessCode("");
+    router.push("/monitor");
+    toast({
+      title: "Logout realizado",
+      description: "Sessão encerrada com sucesso.",
+      variant: "info",
+    });
+  }, [router]);
+
+  const handleFileUpload = useCallback(
+    async (inscricaoId: string, fileType: string, file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("inscricaoId", inscricaoId);
+      formData.append("fileType", fileType);
+
+      try {
+        const response = await fetch("/api/monitor/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          toast({
+            title: "Arquivo enviado",
+            description: "Arquivo enviado com sucesso.",
+          });
+          loadInscricoes(); // Recarregar dados paginados
+          loadAllInscricoes(); // Recarregar dados completos
+        } else {
+          toast({
+            title: "Erro",
+            description: "Erro ao enviar arquivo.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao enviar arquivo.",
+          variant: "destructive",
+        });
+      }
+    },
+    [loadInscricoes]
+  );
+
+  const getStatusBadge = useCallback((status: string) => {
+    switch (status) {
+      case "INSCRITA":
+        return (
+          <Badge className="bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-yellow-200 hover:to-yellow-300 hover:text-yellow-900 hover:border-yellow-400 transition-all duration-200 cursor-pointer">
+            <FileText className="w-3 h-3" />
+            Inscrita
+          </Badge>
+        );
+      case "MATRICULADA":
+        return (
+          <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-green-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-green-200 hover:to-green-300 hover:text-green-900 hover:border-green-400 transition-all duration-200 cursor-pointer">
+            <Check className="w-3 h-3" />
+            Matriculada
+          </Badge>
+        );
+      case "CANCELADA":
+        return (
+          <Badge className="bg-gradient-to-r from-red-100 to-red-200 text-red-800 border-red-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-red-200 hover:to-red-300 hover:text-red-900 hover:border-red-400 transition-all duration-200 cursor-pointer">
+            <X className="w-3 h-3" />
+            Cancelada
+          </Badge>
+        );
+      case "EXCEDENTE":
+        return (
+          <Badge className="bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 border-orange-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-orange-200 hover:to-orange-300 hover:text-orange-900 hover:border-orange-400 transition-all duration-200 cursor-pointer">
+            <Clock className="w-3 h-3" />
+            Excedente
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300 px-3 py-1 font-medium hover:from-gray-200 hover:to-gray-300 hover:text-gray-900 hover:border-gray-400 transition-all duration-200 cursor-pointer">
+            {status}
+          </Badge>
+        );
+    }
+  }, []);
+
+  const formatTimeLeft = useCallback((milliseconds: number) => {
+    const minutes = Math.floor(milliseconds / 60000);
+    const seconds = Math.floor((milliseconds % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }, []);
+
+  const toggleCardExpansion = useCallback((inscricaoId: string) => {
+    setExpandedCards((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(inscricaoId)) {
+        newSet.delete(inscricaoId);
+      } else {
+        newSet.add(inscricaoId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleChangeMonitorRole = useCallback(
+    async (monitorId: string, newRole: string) => {
+      try {
+        console.log("Tentando alterar role:", { monitorId, newRole });
+
+        const response = await fetch("/api/monitor/edit-role", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ monitorId, role: newRole }),
+        });
+
+        console.log("Response status:", response.status);
+        const responseData = await response.json();
+        console.log("Response data:", responseData);
+
+        if (response.ok) {
+          // Atualizar dados paginados
+          setMonitores((prev) =>
+            prev.map((monitor) =>
+              monitor.id === monitorId ? { ...monitor, role: newRole } : monitor
+            )
+          );
+          setFilteredMonitores((prev) =>
+            prev.map((monitor) =>
+              monitor.id === monitorId ? { ...monitor, role: newRole } : monitor
+            )
+          );
+          // Atualizar dados completos
+          setAllMonitores((prev) =>
+            prev.map((monitor) =>
+              monitor.id === monitorId ? { ...monitor, role: newRole } : monitor
+            )
+          );
+
+          toast({
+            title: "Role atualizada",
+            description: `Role alterada para ${
+              newRole === "ADM" ? "Administrador" : "Monitor"
+            }`,
+            variant: "success",
+          });
+        } else {
+          console.error("Erro na resposta:", responseData);
+          toast({
+            title: "Erro",
+            description:
+              responseData.error || "Erro ao alterar role do monitor.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Erro na requisição:", error);
+        toast({
+          title: "Erro",
+          description: `Erro ao alterar role do monitor: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          variant: "destructive",
+        });
+      }
+    },
+    []
+  );
+
+  const handleDeleteMonitor = useCallback(
+    async (monitorId: string, monitorName: string) => {
+      // Confirmação antes de excluir
+      if (
+        !confirm(
+          `Tem certeza que deseja excluir o monitor "${monitorName}"? Esta ação não pode ser desfeita.`
+        )
+      ) {
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/monitor/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ monitorId }),
+        });
+
+        if (response.ok) {
+          // Remover das listas paginadas
+          setMonitores((prev) =>
+            prev.filter((monitor) => monitor.id !== monitorId)
+          );
+          setFilteredMonitores((prev) =>
+            prev.filter((monitor) => monitor.id !== monitorId)
+          );
+          // Remover dos dados completos
+          setAllMonitores((prev) =>
+            prev.filter((monitor) => monitor.id !== monitorId)
+          );
+
+          toast({
+            title: "Monitor excluído",
+            description: `Monitor "${monitorName}" foi excluído com sucesso.`,
+            variant: "success",
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: "Erro ao excluir monitor.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir monitor.",
+          variant: "destructive",
+        });
+      }
+    },
+    []
+  );
+
+  // Funções de paginação
+  const handleInscricoesPageChange = useCallback(
+    async (page: number) => {
+      setSearchTerm(""); // Limpar busca ao mudar página
+      await loadInscricoes(page);
+    },
+    [loadInscricoes]
+  );
+
+  const handleMonitoresPageChange = useCallback(
+    async (page: number) => {
+      setSearchTerm(""); // Limpar busca ao mudar página
+      await loadMonitores(page);
+    },
+    [loadMonitores]
+  );
+
+  // Componentes auxiliares
+  const InscricaoShimmer = useCallback(
+    () => (
+      <div className="p-4">
+        <div className="space-y-3">
+          {/* Linha 1: Avatar + Nome + Status + Botão expansão */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              {/* Avatar shimmer */}
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer flex-shrink-0 shadow-md"></div>
+
+              {/* Nome */}
+              <div className="flex-1">
+                <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-48"></div>
+              </div>
+
+              {/* Status */}
+              <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-20"></div>
+            </div>
+
+            {/* Botão expansão */}
+            <div className="w-8 h-8 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full ml-2 flex-shrink-0"></div>
+          </div>
+
+          {/* Linha 2: Curso + Data */}
+          <div className="flex items-center gap-3">
+            <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-md w-24"></div>
+            <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-20"></div>
+          </div>
+        </div>
+      </div>
+    ),
+    []
+  );
+
+  const MonitorCard = React.memo(({ monitor }: { monitor: any }) => {
+    const getInitials = (name: string) => {
+      const names = name.trim().split(" ");
+      const firstName = names[0]?.charAt(0)?.toUpperCase() || "";
+      const lastName = names[1]?.charAt(0)?.toUpperCase() || "";
+      return firstName + lastName;
+    };
+
+    const getRoleBadge = (role: string) => {
+      return role === "ADM" ? (
+        <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 px-3 py-1 font-medium flex items-center gap-1">
+          <Shield className="w-3 h-3" />
+          ADM
+        </Badge>
+      ) : (
+        <Badge className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300 px-3 py-1 font-medium flex items-center gap-1">
+          <Users className="w-3 h-3" />
+          Monitor
+        </Badge>
+      );
+    };
+
+    // Não permitir editar o próprio usuário logado
+    const isCurrentUser = monitor.email === email;
+
+    return (
+      <div className="p-4 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-blue-300 hover:shadow-sm">
+        <div className="space-y-3">
+          {/* Linha 1: Avatar + Nome + Role + Menu */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Avatar */}
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md bg-gradient-to-br from-blue-100 to-purple-100 border-2 border-blue-200">
+                <span className="font-bold text-sm text-blue-700">
+                  {getInitials(monitor.nome)}
+                </span>
+              </div>
+
+              {/* Nome */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate text-base">
+                  {monitor.nome}
+                  {isCurrentUser && (
+                    <span className="ml-2 text-xs text-pink-600 font-medium">
+                      (Você)
+                    </span>
+                  )}
+                </h3>
+              </div>
+
+              {/* Role */}
+              <div className="flex-shrink-0">{getRoleBadge(monitor.role)}</div>
+            </div>
+
+            {/* Menu de ações - apenas para ADMs e não para o próprio usuário */}
+            {monitorRole === "ADM" && !isCurrentUser && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-2 p-1 h-8 w-8 rounded-full hover:bg-gray-100"
+                  >
+                    <MoreVertical className="w-4 h-4 text-gray-600" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      handleChangeMonitorRole(
+                        monitor.id,
+                        monitor.role === "ADM" ? "MONITOR" : "ADM"
+                      )
+                    }
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>
+                      {monitor.role === "ADM"
+                        ? "Alterar para Monitor"
+                        : "Alterar para Admin"}
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      handleDeleteMonitor(monitor.id, monitor.nome)
+                    }
+                    className="flex items-center gap-2 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir Monitor</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+
+          {/* Linha 2: Email + Data de criação */}
+          <div className="flex items-center gap-3 text-sm">
+            <span className="flex items-center gap-1 text-gray-600">
+              <Mail className="w-3 h-3" />
+              <span>{monitor.email}</span>
+            </span>
+            <span className="flex items-center gap-1 text-gray-500">
+              <Calendar className="w-3 h-3" />
+              <span>{formatDate(monitor.created_at)}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  });
+
+  const StatsShimmer = useCallback(
+    () => (
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div
+            key={index}
+            className="text-center p-2 md:p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg md:rounded-xl border border-gray-200"
+          >
+            <div className="h-6 md:h-8 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded mb-2 mx-auto w-8"></div>
+            <div className="h-3 md:h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-16 mx-auto"></div>
+          </div>
+        ))}
+      </div>
+    ),
+    []
+  );
 
   // Email verification step
   if (step === "email") {
@@ -673,1133 +1577,627 @@ export default function MonitorPage() {
     );
   }
 
-  // Dashboard step (existing code)
-  function normalizeText(text: string) {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function normalizeCPF(cpf: string) {
-    // Remove todos os caracteres não numéricos
-    return cpf.replace(/\D/g, "");
-  }
-
-  function normalizePhone(phone: string) {
-    // Remove todos os caracteres não numéricos
-    return phone.replace(/\D/g, "");
-  }
-
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-
-    // Limpar timeout anterior se existir
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-
-    if (!term.trim()) {
-      setFilteredInscricoes(inscricoes);
-      setFilteredMonitores(monitores);
-      return;
-    }
-
-    const normalizedTerm = normalizeText(term);
-
-    // Se estiver no modo monitores, filtrar monitores
-    if (viewMode === "monitores") {
-      // Função para calcular o score de relevância para nomes de monitores
-      const getNameScore = (name: string, searchTerm: string): number => {
-        const normalizedName = normalizeText(name);
-        const words = normalizedName.split(" ");
-
-        // Score 1000: Correspondência exata no início do nome completo
-        if (normalizedName.startsWith(searchTerm)) {
-          return 1000;
-        }
-
-        // Score 500: Correspondência exata no início de qualquer palavra
-        for (const word of words) {
-          if (word.startsWith(searchTerm)) {
-            return 500;
-          }
-        }
-
-        // Score 100: Correspondência parcial em qualquer lugar
-        if (normalizedName.includes(searchTerm)) {
-          return 100;
-        }
-
-        return 0;
-      };
-
-      const filteredMonitors = monitores
-        .filter((monitor) => {
-          // Busca por nome (com score)
-          const nameScore = getNameScore(monitor.nome, normalizedTerm);
-          const nameMatch = nameScore > 0;
-
-          // Busca por email
-          const normalizedEmail = normalizeText(monitor.email);
-          const emailMatch = normalizedEmail.includes(normalizedTerm);
-
-          // Busca por role
-          const normalizedRole = normalizeText(monitor.role || "");
-          const roleMatch = normalizedRole.includes(normalizedTerm);
-
-          // Adicionar score ao monitor para ordenação posterior
-          (monitor as any)._searchScore = nameScore;
-
-          return nameMatch || emailMatch || roleMatch;
-        })
-        .sort((a, b) => {
-          // Ordenar por score de nome (maior score primeiro)
-          const scoreA = (a as any)._searchScore || 0;
-          const scoreB = (b as any)._searchScore || 0;
-
-          if (scoreA !== scoreB) {
-            return scoreB - scoreA; // Ordem decrescente de score
-          }
-
-          // Se scores iguais, ordenar alfabeticamente por nome
-          return a.nome.localeCompare(b.nome);
-        });
-
-      setFilteredMonitores(filteredMonitors);
-    } else {
-      // Se estiver no modo inscrições, filtrar inscrições (código existente)
-      const normalizedCPFTerm = normalizeCPF(term);
-      const normalizedPhoneTerm = normalizePhone(term);
-
-      // Função para calcular o score de relevância para nomes
-      const getNameScore = (name: string, searchTerm: string): number => {
-        const normalizedName = normalizeText(name);
-        const words = normalizedName.split(" ");
-
-        // Score 1000: Correspondência exata no início do nome completo
-        if (normalizedName.startsWith(searchTerm)) {
-          return 1000;
-        }
-
-        // Score 500: Correspondência exata no início de qualquer palavra
-        for (const word of words) {
-          if (word.startsWith(searchTerm)) {
-            return 500;
-          }
-        }
-
-        // Score 100: Correspondência parcial em qualquer lugar
-        if (normalizedName.includes(searchTerm)) {
-          return 100;
-        }
-
-        return 0;
-      };
-
-      const filtered = inscricoes
-        .filter((inscricao) => {
-          // Busca por nome (com score)
-          const nameScore = getNameScore(inscricao.nome, normalizedTerm);
-          const nameMatch = nameScore > 0;
-
-          // Busca por email (flexível - contém o termo)
-          const normalizedEmail = normalizeText(inscricao.email);
-          const emailMatch = normalizedEmail.includes(normalizedTerm);
-
-          // Busca por CPF (sem pontuação)
-          const normalizedCPF = normalizeCPF(inscricao.cpf);
-          const cpfMatch =
-            normalizedCPFTerm.length >= 3 &&
-            normalizedCPF.includes(normalizedCPFTerm);
-
-          // Busca por telefone (sem pontuação)
-          const normalizedPhone = normalizePhone(
-            inscricao.telefone_whatsapp || ""
-          );
-          const phoneMatch =
-            normalizedPhoneTerm.length >= 4 &&
-            normalizedPhone.includes(normalizedPhoneTerm);
-
-          // Busca por escola/escolaridade
-          const normalizedEscola = normalizeText(inscricao.escolaridade || "");
-          const escolaMatch = normalizedEscola.includes(normalizedTerm);
-
-          // Busca por ano escolar
-          const normalizedAno = normalizeText(inscricao.ano_escolar || "");
-          const anoMatch = normalizedAno.includes(normalizedTerm);
-
-          // Busca por curso
-          const normalizedCurso = normalizeText(inscricao.curso || "");
-          const cursoMatch = normalizedCurso.includes(normalizedTerm);
-
-          // Busca por status
-          const normalizedStatus = normalizeText(inscricao.status || "");
-          const statusMatch = normalizedStatus.includes(normalizedTerm);
-
-          // Adicionar score à inscrição para ordenação posterior
-          (inscricao as any)._searchScore = nameScore;
-
-          return (
-            nameMatch ||
-            emailMatch ||
-            cpfMatch ||
-            phoneMatch ||
-            escolaMatch ||
-            anoMatch ||
-            cursoMatch ||
-            statusMatch
-          );
-        })
-        .sort((a, b) => {
-          // Ordenar por score de nome (maior score primeiro)
-          const scoreA = (a as any)._searchScore || 0;
-          const scoreB = (b as any)._searchScore || 0;
-
-          if (scoreA !== scoreB) {
-            return scoreB - scoreA; // Ordem decrescente de score
-          }
-
-          // Se scores iguais, ordenar alfabeticamente por nome
-          return a.nome.localeCompare(b.nome);
-        });
-
-      setFilteredInscricoes(filtered);
-    }
-
-    // Scroll automático para a lista quando há busca - com debounce
-    if (term.trim() && inscricoesListRef.current) {
-      scrollTimeoutRef.current = setTimeout(() => {
-        inscricoesListRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 800); // Espera 800ms após parar de digitar
-    }
-  };
-
-  const handleStatusChange = async (
-    id: string,
-    newStatus: "INSCRITA" | "MATRICULADA" | "CANCELADA"
-  ) => {
-    try {
-      const response = await fetch("/api/monitor/status", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus }),
-      });
-
-      if (response.ok) {
-        setInscricoes((prev) =>
-          prev.map((inscricao) =>
-            inscricao.id === id
-              ? { ...inscricao, status: newStatus }
-              : inscricao
-          )
-        );
-        setFilteredInscricoes((prev) =>
-          prev.map((inscricao) =>
-            inscricao.id === id
-              ? { ...inscricao, status: newStatus }
-              : inscricao
-          )
-        );
-        toast({
-          title: "Status atualizado",
-          description: `Status alterado para ${newStatus}`,
-          variant: "success",
-        });
-      } else {
-        toast({
-          title: "Erro",
-          description: "Erro ao atualizar status.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar status.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("monitorSession");
-    setIsAuthenticated(false);
-    setStep("email");
-    setEmail("");
-    setMonitorName("");
-    setAccessCode("");
-    router.push("/monitor");
-    toast({
-      title: "Logout realizado",
-      description: "Sessão encerrada com sucesso.",
-      variant: "info",
-    });
-  };
-
-  const handleFileUpload = async (
-    inscricaoId: string,
-    fileType: string,
-    file: File
-  ) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("inscricaoId", inscricaoId);
-    formData.append("fileType", fileType);
-
-    try {
-      const response = await fetch("/api/monitor/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Arquivo enviado",
-          description: "Arquivo enviado com sucesso.",
-        });
-        loadInscricoes(); // Recarregar para atualizar os dados
-      } else {
-        toast({
-          title: "Erro",
-          description: "Erro ao enviar arquivo.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao enviar arquivo.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "INSCRITA":
-        return (
-          <Badge className="bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-yellow-200 hover:to-yellow-300 hover:text-yellow-900 hover:border-yellow-400 transition-all duration-200 cursor-pointer">
-            <FileText className="w-3 h-3" />
-            Inscrita
-          </Badge>
-        );
-      case "MATRICULADA":
-        return (
-          <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-green-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-green-200 hover:to-green-300 hover:text-green-900 hover:border-green-400 transition-all duration-200 cursor-pointer">
-            <Check className="w-3 h-3" />
-            Matriculada
-          </Badge>
-        );
-      case "CANCELADA":
-        return (
-          <Badge className="bg-gradient-to-r from-red-100 to-red-200 text-red-800 border-red-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-red-200 hover:to-red-300 hover:text-red-900 hover:border-red-400 transition-all duration-200 cursor-pointer">
-            <X className="w-3 h-3" />
-            Cancelada
-          </Badge>
-        );
-      case "EXCEDENTE":
-        return (
-          <Badge className="bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 border-orange-300 px-3 py-1 font-medium flex items-center gap-1 hover:from-orange-200 hover:to-orange-300 hover:text-orange-900 hover:border-orange-400 transition-all duration-200 cursor-pointer">
-            <Clock className="w-3 h-3" />
-            Excedente
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300 px-3 py-1 font-medium hover:from-gray-200 hover:to-gray-300 hover:text-gray-900 hover:border-gray-400 transition-all duration-200 cursor-pointer">
-            {status}
-          </Badge>
-        );
-    }
-  };
-
-  const formatTimeLeft = (milliseconds: number) => {
-    const minutes = Math.floor(milliseconds / 60000);
-    const seconds = Math.floor((milliseconds % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
-  // Função para alternar expansão dos cards
-  const toggleCardExpansion = (inscricaoId: string) => {
-    setExpandedCards((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(inscricaoId)) {
-        newSet.delete(inscricaoId);
-      } else {
-        newSet.add(inscricaoId);
-      }
-      return newSet;
-    });
-  };
-
-  // Função para carregar monitores
-  const loadMonitores = async () => {
-    try {
-      const response = await fetch("/api/monitor/monitores");
-      if (response.ok) {
-        const data = await response.json();
-        setMonitores(data);
-        setFilteredMonitores(data);
-      } else {
-        toast({
-          title: "Erro",
-          description: "Erro ao carregar lista de monitores",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error loading monitores:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar monitores",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Componente de Shimmer Effect para Loading
-  const InscricaoShimmer = () => (
-    <div className="p-4">
-      <div className="space-y-3">
-        {/* Linha 1: Avatar + Nome + Status + Botão expansão */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            {/* Avatar shimmer */}
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer flex-shrink-0 shadow-md"></div>
-
-            {/* Nome */}
-            <div className="flex-1">
-              <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-48"></div>
-            </div>
-
-            {/* Status */}
-            <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-20"></div>
-          </div>
-
-          {/* Botão expansão */}
-          <div className="w-8 h-8 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full ml-2 flex-shrink-0"></div>
-        </div>
-
-        {/* Linha 2: Curso + Data */}
-        <div className="flex items-center gap-3">
-          <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-md w-24"></div>
-          <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-20"></div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Componente para exibir monitores
-  const MonitorCard = ({ monitor }: { monitor: any }) => {
-    const getInitials = (name: string) => {
-      const names = name.trim().split(" ");
-      const firstName = names[0]?.charAt(0)?.toUpperCase() || "";
-      const lastName = names[1]?.charAt(0)?.toUpperCase() || "";
-      return firstName + lastName;
-    };
-
-    const getRoleBadge = (role: string) => {
-      return role === "ADM" ? (
-        <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 px-3 py-1 font-medium flex items-center gap-1">
-          <Shield className="w-3 h-3" />
-          ADM
-        </Badge>
-      ) : (
-        <Badge className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300 px-3 py-1 font-medium flex items-center gap-1">
-          <Users className="w-3 h-3" />
-          Monitor
-        </Badge>
-      );
-    };
-
-    return (
-      <div className="p-4 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-blue-300 hover:shadow-sm">
-        <div className="space-y-3">
-          {/* Linha 1: Avatar + Nome + Role */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              {/* Avatar */}
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md bg-gradient-to-br from-blue-100 to-purple-100 border-2 border-blue-200">
-                <span className="font-bold text-sm text-blue-700">
-                  {getInitials(monitor.nome)}
-                </span>
-              </div>
-
-              {/* Nome */}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 truncate text-base">
-                  {monitor.nome}
-                </h3>
-              </div>
-
-              {/* Role */}
-              <div className="flex-shrink-0">{getRoleBadge(monitor.role)}</div>
-            </div>
-          </div>
-
-          {/* Linha 2: Email + Data de criação */}
-          <div className="flex items-center gap-3 text-sm">
-            <span className="flex items-center gap-1 text-gray-600">
-              <Mail className="w-3 h-3" />
-              <span>{monitor.email}</span>
-            </span>
-            <span className="flex items-center gap-1 text-gray-500">
-              <Calendar className="w-3 h-3" />
-              <span>
-                {new Date(monitor.created_at).toLocaleDateString("pt-BR")}
-              </span>
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }; // Componente de Shimmer Effect para Estatísticas
-  const StatsShimmer = () => (
-    <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div
-          key={index}
-          className="text-center p-2 md:p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg md:rounded-xl border border-gray-200"
-        >
-          <div className="h-6 md:h-8 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded mb-2 mx-auto w-8"></div>
-          <div className="h-3 md:h-4 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded w-16 mx-auto"></div>
-        </div>
-      ))}
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
-      {/* Header Principal */}
+      {/* Header Principal - Simplificado */}
       <div className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-            {/* Logo e Info do Monitor */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/assets/images/md_logo.svg"
-                  alt="Mermãs Digitais"
-                  className="h-10 w-auto object-contain"
-                />
-                <div className="border-l border-gray-300 pl-3">
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    Painel do Monitor
-                  </h1>
-                  <div className="text-xs text-gray-600 flex items-center gap-2">
-                    <Users className="w-3 h-3" />
-                    <span className="font-medium text-gray-800">
-                      {monitorName || email}
-                    </span>
-                    {monitorRole === "ADM" && (
-                      <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 px-1.5 py-0.5 text-xs font-medium">
-                        <Shield className="w-2.5 h-2.5 mr-1" />
-                        ADM
-                      </Badge>
+          <div className="flex items-center justify-between">
+            {/* Logo e Título */}
+            <div className="flex items-center gap-3">
+              <img
+                src="/assets/images/md_logo.svg"
+                alt="Mermãs Digitais"
+                className="h-10 w-auto object-contain"
+              />
+              <div className="border-l border-gray-300 pl-3">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                  Painel do Monitor
+                </h1>
+              </div>
+            </div>
+
+            {/* Menu Sanduíche */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 px-3 py-2 border-gray-300 hover:border-pink-300 hover:bg-pink-50"
+                >
+                  <Menu className="w-4 h-4" />
+                  <span className="text-xs">Menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 mt-2">
+                {/* Informações da Sessão */}
+                <div className="px-4 py-3 bg-gradient-to-r from-pink-50 to-purple-50">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100 border-2 border-pink-200">
+                      <span className="font-bold text-sm text-pink-700">
+                        {monitorName
+                          ? monitorName.charAt(0).toUpperCase()
+                          : email.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm">
+                        {monitorName || email}
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs">
+                        {monitorRole === "ADM" ? (
+                          <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 px-2 py-0.5 text-xs font-medium">
+                            <Shield className="w-3 h-3 mr-1" />
+                            Administrador
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300 px-2 py-0.5 text-xs font-medium">
+                            <Users className="w-3 h-3 mr-1" />
+                            Monitor
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Email e tempo de sessão */}
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      <span>{email}</span>
+                    </div>
+                    {isAuthenticated && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span
+                          className={
+                            sessionTimeLeft < 5 * 60 * 1000
+                              ? "text-red-600 font-semibold"
+                              : "text-green-600"
+                          }
+                        >
+                          Sessão: {formatTimeLeft(sessionTimeLeft)}
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Controles - Desktop e Mobile */}
-            <div className="flex items-center gap-4 w-full lg:w-auto">
-              {/* Barra de busca */}
-              <div className="relative flex-1 lg:w-72">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <Input
-                  placeholder={
-                    viewMode === "monitores"
-                      ? "Buscar por nome, email ou role..."
-                      : "Buscar por nome, email, CPF..."
-                  }
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  style={{ fontSize: "16px" }} // Previne zoom no iOS
-                  className="pl-12 pr-4 py-2.5 bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all duration-200 text-sm"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => handleSearch("")}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+                <DropdownMenuSeparator />
 
-              {/* Menu Desktop - visível apenas em telas grandes */}
-              <div className="hidden lg:flex items-center gap-3">
-                {/* Toggle de visualização */}
-                <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 shadow-sm">
-                  <Button
-                    variant={viewMode === "inscricoes" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("inscricoes")}
-                    className={`px-3 py-2 rounded-md text-xs font-semibold transition-all duration-300 ${
-                      viewMode === "inscricoes"
-                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md hover:shadow-lg hover:shadow-pink-200 hover:scale-105"
-                        : "text-gray-600 hover:text-gray-800 hover:bg-white hover:shadow-sm"
-                    }`}
-                  >
-                    <GraduationCap className="w-3 h-3 mr-1.5" />
-                    Alunas
-                  </Button>
-                  <Button
-                    variant={viewMode === "monitores" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("monitores")}
-                    className={`px-3 py-2 rounded-md text-xs font-semibold transition-all duration-300 ${
-                      viewMode === "monitores"
-                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md hover:shadow-lg hover:shadow-pink-200 hover:scale-105"
-                        : "text-gray-600 hover:text-gray-800 hover:bg-white hover:shadow-sm"
-                    }`}
-                  >
-                    <Shield className="w-3 h-3 mr-1.5" />
-                    Monitores
-                  </Button>
-                </div>
-
-                {/* Grupo de ações e sessão */}
-                <div className="flex items-center gap-2">
-                  {/* Botões de ação para ADMs */}
-                  {monitorRole === "ADM" && (
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        onClick={() => setIsModalNovaInscricaoOpen(true)}
-                        className="bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-200 hover:scale-105 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 shadow-md border-0"
-                      >
-                        <Plus className="w-3 h-3 mr-1.5" />
-                        Novo
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setIsModalNovoMonitorOpen(true)}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 hover:shadow-lg hover:shadow-blue-200 hover:scale-105 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 shadow-md border-0"
-                      >
-                        <UserPlus className="w-3 h-3 mr-1.5" />
-                        Monitor
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Indicador de sessão - mais compacto */}
-                  {isAuthenticated && (
-                    <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-2 rounded-lg shadow-sm hover:bg-green-100 hover:shadow-md transition-all duration-300">
-                      <div className="relative">
-                        <Wifi className="w-3 h-3 text-green-600" />
-                        <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
-                      </div>
-                      <span
-                        className={`text-xs font-semibold ${
-                          sessionTimeLeft < 5 * 60 * 1000
-                            ? "text-red-600"
-                            : "text-green-700"
-                        }`}
-                      >
-                        {formatTimeLeft(sessionTimeLeft)}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Botão de logout - mais compacto */}
+                {/* Botão de logout */}
+                <div className="px-3 py-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleLogout}
-                    className="text-pink-600 hover:text-white hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 border-pink-200 hover:border-pink-400 hover:shadow-lg hover:shadow-pink-200 hover:scale-105 transition-all duration-300 px-3 py-2 text-xs font-semibold shadow-sm"
+                    className="w-full text-pink-600 hover:text-white hover:bg-gradient-to-r hover:from-pink-500 hover:to-rose-500 border-pink-200 hover:border-pink-400 transition-all duration-300 justify-start"
                   >
-                    <LogOut className="w-3 h-3 mr-1.5" />
-                    Sair
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sair do Painel
                   </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+
+      {/* Container principal do conteúdo */}
+      <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
+        {/* Dashboard Stats - Layout mais compacto */}
+        <div className="grid gap-4 md:gap-6 mb-6 md:mb-8">
+          {/* Resumo Geral - Mais compacto */}
+          <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-lg">
+            <CardHeader className="pb-2 md:pb-3">
+              <CardTitle className="text-base md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                Resumo Geral
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {isLoadingStats ? (
+                <StatsShimmer />
+              ) : (
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
+                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg md:rounded-xl border border-blue-200">
+                    <div className="text-lg md:text-2xl font-bold text-blue-700">
+                      {allInscricoes.length}
+                    </div>
+                    <p className="text-xs md:text-sm font-medium text-blue-600">
+                      Total
+                    </p>
+                  </div>
+                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg md:rounded-xl border border-yellow-200">
+                    <div className="text-lg md:text-2xl font-bold text-yellow-700">
+                      {
+                        allInscricoes.filter((i) => i.status === "INSCRITA")
+                          .length
+                      }
+                    </div>
+                    <p className="text-xs md:text-sm font-medium text-yellow-600">
+                      Inscritas
+                    </p>
+                  </div>
+                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg md:rounded-xl border border-green-200">
+                    <div className="text-lg md:text-2xl font-bold text-green-700">
+                      {
+                        allInscricoes.filter((i) => i.status === "MATRICULADA")
+                          .length
+                      }
+                    </div>
+                    <p className="text-xs md:text-sm font-medium text-green-600">
+                      Matriculadas
+                    </p>
+                  </div>
+                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg md:rounded-xl border border-orange-200">
+                    <div className="text-lg md:text-2xl font-bold text-orange-700">
+                      {
+                        allInscricoes.filter((i) => i.status === "EXCEDENTE")
+                          .length
+                      }
+                    </div>
+                    <p className="text-xs md:text-sm font-medium text-orange-600">
+                      Excedentes
+                    </p>
+                  </div>
+                  <div className="text-center p-2 md:p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg md:rounded-xl border border-red-200">
+                    <div className="text-lg md:text-2xl font-bold text-red-700">
+                      {
+                        allInscricoes.filter((i) => i.status === "CANCELADA")
+                          .length
+                      }
+                    </div>
+                    <p className="text-xs md:text-sm font-medium text-red-600">
+                      Canceladas
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Dados por Curso - Layout mais compacto */}
+          <div className="grid md:grid-cols-2 gap-3 md:gap-6">
+            {/* Jogos Digitais */}
+            {(() => {
+              const jogosInscricoes = allInscricoes.filter(
+                (i) => i.curso === "Jogos"
+              );
+              const jogosStats = {
+                total: jogosInscricoes.length,
+                inscrita: jogosInscricoes.filter((i) => i.status === "INSCRITA")
+                  .length,
+                matriculada: jogosInscricoes.filter(
+                  (i) => i.status === "MATRICULADA"
+                ).length,
+                excedente: jogosInscricoes.filter(
+                  (i) => i.status === "EXCEDENTE"
+                ).length,
+                cancelada: jogosInscricoes.filter(
+                  (i) => i.status === "CANCELADA"
+                ).length,
+              };
+              const vagas = 50;
+              const ocupacao =
+                ((jogosStats.matriculada + jogosStats.inscrita) / vagas) * 100;
+
+              return (
+                <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-0 shadow-lg">
+                  <CardHeader className="pb-2 md:pb-3">
+                    <CardTitle className="text-base md:text-lg font-bold text-purple-900 flex items-center gap-2">
+                      <Gamepad2 className="w-4 h-4 md:w-5 md:h-5 text-purple-700" />
+                      Jogos Digitais
+                      <Badge className="bg-purple-100 text-purple-700 ml-auto text-xs hover:bg-purple-200 hover:text-purple-800 transition-all duration-200 cursor-pointer">
+                        {jogosStats.total}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3 md:space-y-4">
+                      {/* Barra de Progresso */}
+                      <div>
+                        <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                          <span>Ocupação</span>
+                          <span>
+                            {jogosStats.matriculada + jogosStats.inscrita}/
+                            {vagas}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                          <div
+                            className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(ocupacao, 100)}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {ocupacao.toFixed(1)}% ocupado
+                        </p>
+                      </div>
+
+                      {/* Stats - Layout mais compacto */}
+                      <div className="grid grid-cols-2 gap-2 md:gap-3">
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                          <div className="text-sm md:text-lg font-bold text-green-700">
+                            {jogosStats.matriculada}
+                          </div>
+                          <p className="text-xs font-medium text-green-600">
+                            Matriculadas
+                          </p>
+                        </div>
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                          <div className="text-sm md:text-lg font-bold text-yellow-700">
+                            {jogosStats.inscrita}
+                          </div>
+                          <p className="text-xs font-medium text-yellow-600">
+                            Inscritas
+                          </p>
+                        </div>
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                          <div className="text-sm md:text-lg font-bold text-orange-700">
+                            {jogosStats.excedente}
+                          </div>
+                          <p className="text-xs font-medium text-orange-600">
+                            Excedentes
+                          </p>
+                        </div>
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
+                          <div className="text-sm md:text-lg font-bold text-red-700">
+                            {jogosStats.cancelada}
+                          </div>
+                          <p className="text-xs font-medium text-red-600">
+                            Canceladas
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* Robótica */}
+            {(() => {
+              const roboticaInscricoes = allInscricoes.filter(
+                (i) => i.curso === "Robótica"
+              );
+              const roboticaStats = {
+                total: roboticaInscricoes.length,
+                inscrita: roboticaInscricoes.filter(
+                  (i) => i.status === "INSCRITA"
+                ).length,
+                matriculada: roboticaInscricoes.filter(
+                  (i) => i.status === "MATRICULADA"
+                ).length,
+                excedente: roboticaInscricoes.filter(
+                  (i) => i.status === "EXCEDENTE"
+                ).length,
+                cancelada: roboticaInscricoes.filter(
+                  (i) => i.status === "CANCELADA"
+                ).length,
+              };
+              const vagas = 50;
+              const ocupacao =
+                ((roboticaStats.matriculada + roboticaStats.inscrita) / vagas) *
+                100;
+
+              return (
+                <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-0 shadow-lg">
+                  <CardHeader className="pb-2 md:pb-3">
+                    <CardTitle className="text-base md:text-lg font-bold text-blue-900 flex items-center gap-2">
+                      <Bot className="w-4 h-4 md:w-5 md:h-5 text-blue-700" />
+                      Robótica / IA
+                      <Badge className="bg-blue-100 text-blue-700 ml-auto text-xs hover:bg-blue-200 hover:text-blue-800 transition-all duration-200 cursor-pointer">
+                        {roboticaStats.total}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3 md:space-y-4">
+                      {/* Barra de Progresso */}
+                      <div>
+                        <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                          <span>Ocupação</span>
+                          <span>
+                            {roboticaStats.matriculada + roboticaStats.inscrita}
+                            /{vagas}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(ocupacao, 100)}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {ocupacao.toFixed(1)}% ocupado
+                        </p>
+                      </div>
+
+                      {/* Stats - Layout mais compacto */}
+                      <div className="grid grid-cols-2 gap-2 md:gap-3">
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                          <div className="text-sm md:text-lg font-bold text-green-700">
+                            {roboticaStats.matriculada}
+                          </div>
+                          <p className="text-xs font-medium text-green-600">
+                            Matriculadas
+                          </p>
+                        </div>
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                          <div className="text-sm md:text-lg font-bold text-yellow-700">
+                            {roboticaStats.inscrita}
+                          </div>
+                          <p className="text-xs font-medium text-yellow-600">
+                            Inscritas
+                          </p>
+                        </div>
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                          <div className="text-sm md:text-lg font-bold text-orange-700">
+                            {roboticaStats.excedente}
+                          </div>
+                          <p className="text-xs font-medium text-orange-600">
+                            Excedentes
+                          </p>
+                        </div>
+                        <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
+                          <div className="text-sm md:text-lg font-bold text-red-700">
+                            {roboticaStats.cancelada}
+                          </div>
+                          <p className="text-xs font-medium text-red-600">
+                            Canceladas
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </div>
+        </div>
+        {/* Barra de Controles - Unificada */}
+        <div className="mb-6 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+          {/* Header da barra com seletor */}
+          <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 px-6 py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* Título da seção */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center shadow-md">
+                  {viewMode === "inscricoes" ? (
+                    <GraduationCap className="w-5 h-5 text-white" />
+                  ) : (
+                    <Shield className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {viewMode === "inscricoes"
+                      ? "Lista de Inscrições"
+                      : "Lista de Monitores"}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {viewMode === "inscricoes"
+                      ? "Visualize e gerencie todas as inscrições dos cursos"
+                      : "Gerencie todos os monitores do sistema"}
+                  </p>
                 </div>
               </div>
 
-              {/* Menu Mobile - visível apenas em telas pequenas */}
-              <div className="lg:hidden">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2 px-3 py-2 border-gray-300 hover:border-pink-300 hover:bg-pink-50"
+              {/* Seletor de visualização redesenhado */}
+              <div className="relative">
+                <div className="flex bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1 border border-gray-200/50 shadow-sm">
+                  <button
+                    onClick={() => setViewMode("inscricoes")}
+                    className={`relative px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                      viewMode === "inscricoes"
+                        ? "bg-white text-pink-600 shadow-md shadow-pink-100 border border-pink-100"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                    }`}
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    <span>Alunas</span>
+                    <Badge
+                      className={`ml-1 text-xs px-2 py-0.5 ${
+                        viewMode === "inscricoes"
+                          ? "bg-pink-100 text-pink-700 border-pink-200"
+                          : "bg-gray-200 text-gray-600 border-gray-300"
+                      }`}
                     >
-                      <Menu className="w-4 h-4" />
-                      <span className="text-xs">Menu</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 mt-2">
-                    {/* Toggle de visualização */}
-                    <div className="px-3 py-2">
-                      <p className="text-xs font-medium text-gray-500 mb-2">
-                        VISUALIZAÇÃO
-                      </p>
-                      <div className="flex gap-1 bg-gray-50 rounded-lg p-1">
-                        <Button
-                          variant={
-                            viewMode === "inscricoes" ? "default" : "ghost"
-                          }
-                          size="sm"
-                          onClick={() => setViewMode("inscricoes")}
-                          className={`flex-1 py-2 text-xs font-medium transition-all duration-200 ${
-                            viewMode === "inscricoes"
-                              ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-sm"
-                              : "text-gray-600 hover:text-gray-800 hover:bg-white"
-                          }`}
-                        >
-                          <GraduationCap className="w-3 h-3 mr-1" />
-                          Alunas
-                        </Button>
-                        <Button
-                          variant={
-                            viewMode === "monitores" ? "default" : "ghost"
-                          }
-                          size="sm"
-                          onClick={() => setViewMode("monitores")}
-                          className={`flex-1 py-2 text-xs font-medium transition-all duration-200 ${
-                            viewMode === "monitores"
-                              ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-sm"
-                              : "text-gray-600 hover:text-gray-800 hover:bg-white"
-                          }`}
-                        >
-                          <Shield className="w-3 h-3 mr-1" />
-                          Monitores
-                        </Button>
-                      </div>
+                      {searchTerm
+                        ? filteredInscricoes.length
+                        : allInscricoes.length}
+                    </Badge>
+                  </button>
+                  <button
+                    onClick={() => setViewMode("monitores")}
+                    className={`relative px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                      viewMode === "monitores"
+                        ? "bg-white text-blue-600 shadow-md shadow-blue-100 border border-blue-100"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Monitores</span>
+                    <Badge
+                      className={`ml-1 text-xs px-2 py-0.5 ${
+                        viewMode === "monitores"
+                          ? "bg-blue-100 text-blue-700 border-blue-200"
+                          : "bg-gray-200 text-gray-600 border-gray-300"
+                      }`}
+                    >
+                      {searchTerm
+                        ? filteredMonitores.length
+                        : allMonitores.length}
+                    </Badge>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Conteúdo principal - Busca e Ações */}
+          <div className="px-6 py-5">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+              {/* Barra de busca melhorada */}
+              <div className="relative flex-1 lg:max-w-xl">
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
+                  <Search className="text-gray-400 w-5 h-5" />
+                </div>
+                <Input
+                  placeholder={
+                    viewMode === "monitores"
+                      ? "Buscar monitores por nome, email ou função..."
+                      : "Buscar alunas por nome, email, CPF ou curso..."
+                  }
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  style={{ fontSize: "16px" }}
+                  className="pl-12 pr-12 py-4 bg-gray-50/50 border-2 border-gray-200/80 rounded-2xl focus:bg-white focus:border-pink-300 focus:ring-4 focus:ring-pink-50 transition-all duration-300 text-sm w-full shadow-sm hover:shadow-md hover:border-pink-200 hover:bg-white backdrop-blur-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => handleSearch("")}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-600 transition-all duration-200 hover:scale-110 z-10 bg-white rounded-full p-1 shadow-sm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Indicador de busca ativa */}
+                {searchTerm && (
+                  <div className="absolute top-full mt-2 left-0 right-0 bg-white rounded-xl border border-gray-200 shadow-lg p-3 z-20">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-pink-400 animate-pulse"></div>
+                      <span className="text-gray-600">
+                        Buscando por:{" "}
+                        <span className="font-semibold text-pink-600">
+                          "{searchTerm}"
+                        </span>
+                      </span>
+                      <span className="ml-auto px-2 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-700">
+                        {viewMode === "inscricoes"
+                          ? filteredInscricoes.length
+                          : filteredMonitores.length}{" "}
+                        resultados
+                      </span>
                     </div>
+                  </div>
+                )}
+              </div>
 
-                    {/* Botões de ação para ADMs */}
-                    {monitorRole === "ADM" && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <div className="px-3 py-2">
-                          <p className="text-xs font-medium text-gray-500 mb-2">
-                            AÇÕES DO ADMINISTRADOR
-                          </p>
-                          <div className="space-y-2">
-                            <Button
-                              size="sm"
-                              onClick={() => setIsModalNovaInscricaoOpen(true)}
-                              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 text-xs font-medium transition-all duration-200 shadow-sm justify-start"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Nova Inscrição
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => setIsModalNovoMonitorOpen(true)}
-                              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 text-xs font-medium transition-all duration-200 shadow-sm justify-start"
-                            >
-                              <UserPlus className="w-4 h-4 mr-2" />
-                              Novo Monitor
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Status da sessão */}
-                    <DropdownMenuSeparator />
-                    <div className="px-3 py-2">
-                      <p className="text-xs font-medium text-gray-500 mb-2">
-                        SESSÃO
-                      </p>
-                      {isAuthenticated && (
-                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 px-3 py-2 rounded-lg mb-2">
-                          <div className="relative">
-                            <Wifi className="w-4 h-4 text-green-600" />
-                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          </div>
-                          <div className="text-sm">
-                            <span
-                              className={
-                                sessionTimeLeft < 5 * 60 * 1000
-                                  ? "text-red-600 font-semibold"
-                                  : "text-green-700 font-medium"
-                              }
-                            >
-                              {formatTimeLeft(sessionTimeLeft)}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+              {/* Ações - Desktop e Mobile */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Menu "Novo" para ADMs */}
+                {monitorRole === "ADM" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
-                        variant="outline"
                         size="sm"
-                        onClick={handleLogout}
-                        className="w-full text-pink-600 hover:text-pink-700 hover:bg-pink-50 border-pink-200 hover:border-pink-300 transition-all duration-200 justify-start"
+                        className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 hover:shadow-lg hover:shadow-emerald-200/50 px-6 py-4 rounded-2xl text-sm font-semibold transition-all duration-300 shadow-md border-0 hover:scale-[1.02] backdrop-blur-sm"
                       >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Sair
+                        <Plus className="w-4 h-4 mr-2" />
+                        <span className="hidden sm:inline">Ações</span>
+                        <span className="sm:hidden">Ações</span>
+                        <ChevronDown className="w-4 h-4 ml-2" />
                       </Button>
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-64 sm:w-72 mt-2 bg-white/95 backdrop-blur-xl border border-gray-200/80 shadow-2xl rounded-2xl overflow-hidden"
+                    >
+                      <div className="p-3">
+                        {/* Header do menu */}
+                        <div className="px-3 py-2 mb-3">
+                          <h3 className="font-semibold text-gray-900 text-sm">
+                            Ações disponíveis
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Escolha o que deseja fazer
+                          </p>
+                        </div>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsModalNovaInscricaoOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:text-pink-700 transition-all duration-200 cursor-pointer mb-2"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-100 to-purple-100 flex items-center justify-center shadow-sm">
+                            <GraduationCap className="w-5 h-5 text-pink-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Nova Aluna
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Cadastrar nova inscrição de aluna
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsModalNovoMonitorOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-200 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center shadow-sm">
+                            <UserPlus className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Novo Monitor
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Adicionar monitor ou administrador
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsExportModalOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 transition-all duration-200 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center shadow-sm">
+                            <FileDown className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Exportar Lista
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Gerar PDF ou planilha Excel
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsEmailModalOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50 hover:text-purple-700 transition-all duration-200 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-100 to-violet-100 flex items-center justify-center shadow-sm">
+                            <Mail className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Enviar Email
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Email em massa com filtros
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-          {/* Dashboard Stats - Layout mais compacto */}
-          <div className="grid gap-4 md:gap-6 mb-6 md:mb-8">
-            {/* Resumo Geral - Mais compacto */}
-            <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-lg">
-              <CardHeader className="pb-2 md:pb-3">
-                <CardTitle className="text-base md:text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-                  Resumo Geral
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {isLoadingInscricoes ? (
-                  <StatsShimmer />
-                ) : (
-                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
-                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg md:rounded-xl border border-blue-200">
-                      <div className="text-lg md:text-2xl font-bold text-blue-700">
-                        {inscricoes.length}
-                      </div>
-                      <p className="text-xs md:text-sm font-medium text-blue-600">
-                        Total
-                      </p>
-                    </div>
-                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg md:rounded-xl border border-yellow-200">
-                      <div className="text-lg md:text-2xl font-bold text-yellow-700">
-                        {
-                          inscricoes.filter((i) => i.status === "INSCRITA")
-                            .length
-                        }
-                      </div>
-                      <p className="text-xs md:text-sm font-medium text-yellow-600">
-                        Inscritas
-                      </p>
-                    </div>
-                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg md:rounded-xl border border-green-200">
-                      <div className="text-lg md:text-2xl font-bold text-green-700">
-                        {
-                          inscricoes.filter((i) => i.status === "MATRICULADA")
-                            .length
-                        }
-                      </div>
-                      <p className="text-xs md:text-sm font-medium text-green-600">
-                        Matriculadas
-                      </p>
-                    </div>
-                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg md:rounded-xl border border-orange-200">
-                      <div className="text-lg md:text-2xl font-bold text-orange-700">
-                        {
-                          inscricoes.filter((i) => i.status === "EXCEDENTE")
-                            .length
-                        }
-                      </div>
-                      <p className="text-xs md:text-sm font-medium text-orange-600">
-                        Excedentes
-                      </p>
-                    </div>
-                    <div className="text-center p-2 md:p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg md:rounded-xl border border-red-200">
-                      <div className="text-lg md:text-2xl font-bold text-red-700">
-                        {
-                          inscricoes.filter((i) => i.status === "CANCELADA")
-                            .length
-                        }
-                      </div>
-                      <p className="text-xs md:text-sm font-medium text-red-600">
-                        Canceladas
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Dados por Curso - Layout mais compacto */}
-            <div className="grid md:grid-cols-2 gap-3 md:gap-6">
-              {/* Jogos Digitais */}
-              {(() => {
-                const jogosInscricoes = inscricoes.filter(
-                  (i) => i.curso === "Jogos"
-                );
-                const jogosStats = {
-                  total: jogosInscricoes.length,
-                  inscrita: jogosInscricoes.filter(
-                    (i) => i.status === "INSCRITA"
-                  ).length,
-                  matriculada: jogosInscricoes.filter(
-                    (i) => i.status === "MATRICULADA"
-                  ).length,
-                  excedente: jogosInscricoes.filter(
-                    (i) => i.status === "EXCEDENTE"
-                  ).length,
-                  cancelada: jogosInscricoes.filter(
-                    (i) => i.status === "CANCELADA"
-                  ).length,
-                };
-                const vagas = 50;
-                const ocupacao =
-                  ((jogosStats.matriculada + jogosStats.inscrita) / vagas) *
-                  100;
-
-                return (
-                  <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-0 shadow-lg">
-                    <CardHeader className="pb-2 md:pb-3">
-                      <CardTitle className="text-base md:text-lg font-bold text-purple-900 flex items-center gap-2">
-                        <Gamepad2 className="w-4 h-4 md:w-5 md:h-5 text-purple-700" />
-                        Jogos Digitais
-                        <Badge className="bg-purple-100 text-purple-700 ml-auto text-xs hover:bg-purple-200 hover:text-purple-800 transition-all duration-200 cursor-pointer">
-                          {jogosStats.total}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-3 md:space-y-4">
-                        {/* Barra de Progresso */}
-                        <div>
-                          <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
-                            <span>Ocupação</span>
-                            <span>
-                              {jogosStats.matriculada + jogosStats.inscrita}/
-                              {vagas}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                            <div
-                              className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-600 mt-1">
-                            {ocupacao.toFixed(1)}% ocupado
-                          </p>
-                        </div>
-
-                        {/* Stats - Layout mais compacto */}
-                        <div className="grid grid-cols-2 gap-2 md:gap-3">
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                            <div className="text-sm md:text-lg font-bold text-green-700">
-                              {jogosStats.matriculada}
-                            </div>
-                            <p className="text-xs font-medium text-green-600">
-                              Matriculadas
-                            </p>
-                          </div>
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                            <div className="text-sm md:text-lg font-bold text-yellow-700">
-                              {jogosStats.inscrita}
-                            </div>
-                            <p className="text-xs font-medium text-yellow-600">
-                              Inscritas
-                            </p>
-                          </div>
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                            <div className="text-sm md:text-lg font-bold text-orange-700">
-                              {jogosStats.excedente}
-                            </div>
-                            <p className="text-xs font-medium text-orange-600">
-                              Excedentes
-                            </p>
-                          </div>
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-purple-200">
-                            <div className="text-sm md:text-lg font-bold text-red-700">
-                              {jogosStats.cancelada}
-                            </div>
-                            <p className="text-xs font-medium text-red-600">
-                              Canceladas
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-
-              {/* Robótica */}
-              {(() => {
-                const roboticaInscricoes = inscricoes.filter(
-                  (i) => i.curso === "Robótica"
-                );
-                const roboticaStats = {
-                  total: roboticaInscricoes.length,
-                  inscrita: roboticaInscricoes.filter(
-                    (i) => i.status === "INSCRITA"
-                  ).length,
-                  matriculada: roboticaInscricoes.filter(
-                    (i) => i.status === "MATRICULADA"
-                  ).length,
-                  excedente: roboticaInscricoes.filter(
-                    (i) => i.status === "EXCEDENTE"
-                  ).length,
-                  cancelada: roboticaInscricoes.filter(
-                    (i) => i.status === "CANCELADA"
-                  ).length,
-                };
-                const vagas = 50;
-                const ocupacao =
-                  ((roboticaStats.matriculada + roboticaStats.inscrita) /
-                    vagas) *
-                  100;
-
-                return (
-                  <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-0 shadow-lg">
-                    <CardHeader className="pb-2 md:pb-3">
-                      <CardTitle className="text-base md:text-lg font-bold text-blue-900 flex items-center gap-2">
-                        <Bot className="w-4 h-4 md:w-5 md:h-5 text-blue-700" />
-                        Robótica / IA
-                        <Badge className="bg-blue-100 text-blue-700 ml-auto text-xs hover:bg-blue-200 hover:text-blue-800 transition-all duration-200 cursor-pointer">
-                          {roboticaStats.total}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-3 md:space-y-4">
-                        {/* Barra de Progresso */}
-                        <div>
-                          <div className="flex justify-between text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
-                            <span>Ocupação</span>
-                            <span>
-                              {roboticaStats.matriculada +
-                                roboticaStats.inscrita}
-                              /{vagas}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(ocupacao, 100)}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-600 mt-1">
-                            {ocupacao.toFixed(1)}% ocupado
-                          </p>
-                        </div>
-
-                        {/* Stats - Layout mais compacto */}
-                        <div className="grid grid-cols-2 gap-2 md:gap-3">
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                            <div className="text-sm md:text-lg font-bold text-green-700">
-                              {roboticaStats.matriculada}
-                            </div>
-                            <p className="text-xs font-medium text-green-600">
-                              Matriculadas
-                            </p>
-                          </div>
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                            <div className="text-sm md:text-lg font-bold text-yellow-700">
-                              {roboticaStats.inscrita}
-                            </div>
-                            <p className="text-xs font-medium text-yellow-600">
-                              Inscritas
-                            </p>
-                          </div>
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                            <div className="text-sm md:text-lg font-bold text-orange-700">
-                              {roboticaStats.excedente}
-                            </div>
-                            <p className="text-xs font-medium text-orange-600">
-                              Excedentes
-                            </p>
-                          </div>
-                          <div className="text-center p-2 md:p-3 bg-white/70 rounded-lg border border-blue-200">
-                            <div className="text-sm md:text-lg font-bold text-red-700">
-                              {roboticaStats.cancelada}
-                            </div>
-                            <p className="text-xs font-medium text-red-600">
-                              Canceladas
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Lista de Inscrições ou Monitores */}
-          <Card className="bg-white shadow-lg border-0" ref={inscricoesListRef}>
-            <CardHeader className="bg-gradient-to-r from-gray-50 via-purple-50 to-pink-50 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
-                    {viewMode === "inscricoes" ? (
-                      <GraduationCap className="w-5 h-5 text-white" />
-                    ) : (
-                      <Shield className="w-5 h-5 text-white" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                      {viewMode === "inscricoes"
-                        ? "Lista de Inscrições"
-                        : "Lista de Monitores"}
-                    </span>
-                    <p className="text-sm font-normal text-gray-600 mt-1">
-                      {viewMode === "inscricoes"
-                        ? "Gerencie todas as inscrições dos cursos"
-                        : "Gerencie todos os monitores do sistema"}
-                    </p>
-                  </div>
-                </CardTitle>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border-blue-200 hover:from-blue-200 hover:to-purple-200 hover:text-blue-800 transition-all duration-200 cursor-pointer px-4 py-2">
-                    <span className="font-semibold">
-                      {viewMode === "inscricoes"
-                        ? `${filteredInscricoes.length} ${
-                            filteredInscricoes.length === 1
-                              ? "inscrição"
-                              : "inscrições"
-                          }`
-                        : `${monitores.length} ${
-                            monitores.length === 1 ? "monitor" : "monitores"
-                          }`}
-                    </span>
-                  </Badge>
-                  {searchTerm && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
-                      <Search className="w-4 h-4 text-gray-500" />
-                      <span>
-                        Filtrado por:{" "}
-                        <span className="font-semibold text-purple-600">
-                          "{searchTerm}"
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {viewMode === "monitores" ? (
-                // Visualização de Monitores
-                !filteredMonitores || filteredMonitores.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600 font-medium">
-                      {searchTerm
-                        ? "Nenhum monitor encontrado"
-                        : "Nenhum monitor cadastrado"}
-                    </p>
-                    <p className="text-gray-500 text-sm mt-1">
-                      {searchTerm
-                        ? "Tente buscar por outro termo"
-                        : "Os monitores aparecerão aqui quando forem criados"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {filteredMonitores.map((monitor) => (
-                      <MonitorCard key={monitor.id} monitor={monitor} />
-                    ))}
-                  </div>
-                )
-              ) : // Visualização de Inscrições (código existente)
+        {/* Lista de Inscrições ou Monitores - Sem Header */}
+        <Card className="bg-white shadow-lg border-0" ref={inscricoesListRef}>
+          <CardContent className="p-0">
+            {/* Visualização de Inscrições */}
+            {viewMode === "inscricoes" ? (
               isLoadingInscricoes ? (
                 // Shimmer effect durante o carregamento
                 <div className="divide-y divide-gray-100">
@@ -1908,11 +2306,7 @@ export default function MonitorPage() {
                             </span>
                             <span className="flex items-center gap-1 text-gray-500">
                               <Calendar className="w-3 h-3" />
-                              <span>
-                                {new Date(
-                                  inscricao.created_at
-                                ).toLocaleDateString("pt-BR")}
-                              </span>
+                              <span>{formatDate(inscricao.created_at)}</span>
                             </span>
                           </div>
 
@@ -1940,9 +2334,7 @@ export default function MonitorPage() {
                                       <span className="font-medium">
                                         Nascimento:
                                       </span>{" "}
-                                      {new Date(
-                                        inscricao.data_nascimento
-                                      ).toLocaleDateString("pt-BR")}
+                                      {formatDate(inscricao.data_nascimento)}
                                     </div>
                                     {inscricao.nome_responsavel && (
                                       <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -2036,10 +2428,63 @@ export default function MonitorPage() {
                     );
                   })}
                 </div>
+              )
+            ) : null}
+
+            {/* Paginação para Inscrições */}
+            {viewMode === "inscricoes" &&
+              !isLoadingInscricoes &&
+              inscricoesPagination.totalPages > 1 && (
+                <DataPagination
+                  currentPage={inscricoesPagination.currentPage}
+                  totalPages={inscricoesPagination.totalPages}
+                  totalItems={inscricoesPagination.totalItems}
+                  itemsPerPage={inscricoesPagination.itemsPerPage}
+                  onPageChange={handleInscricoesPageChange}
+                  isLoading={isLoadingInscricoes}
+                />
               )}
-            </CardContent>
-          </Card>
-        </div>
+
+            {/* Lista de Monitores */}
+            {viewMode === "monitores" && (
+              <>
+                {filteredMonitores.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 font-medium">
+                      {searchTerm
+                        ? "Nenhum monitor encontrado"
+                        : "Nenhum monitor cadastrado"}
+                    </p>
+                    <p className="text-gray-500 text-sm mt-1">
+                      {searchTerm
+                        ? "Tente buscar por outro termo"
+                        : "Os monitores aparecerão aqui quando forem criados"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {filteredMonitores.map((monitor) => (
+                      <MonitorCard key={monitor.id} monitor={monitor} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Paginação para Monitores */}
+                {monitoresPagination.totalPages > 1 && (
+                  <DataPagination
+                    currentPage={monitoresPagination.currentPage}
+                    totalPages={monitoresPagination.totalPages}
+                    totalItems={monitoresPagination.totalItems}
+                    itemsPerPage={monitoresPagination.itemsPerPage}
+                    onPageChange={handleMonitoresPageChange}
+                    isLoading={false}
+                  />
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Modais */}
@@ -2053,6 +2498,20 @@ export default function MonitorPage() {
         isOpen={isModalNovoMonitorOpen}
         onClose={() => setIsModalNovoMonitorOpen(false)}
         onSuccess={handleNovoMonitorSuccess}
+      />
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        allInscricoes={allInscricoes}
+        monitorName={monitorName}
+      />
+
+      <EmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        allInscricoes={allInscricoes}
+        monitorName={monitorName}
       />
     </div>
   );

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Verificar se o email ainda está na lista de monitores
     const { data: monitor } = await supabase
       .from("monitores")
-      .select("email")
+      .select("email, nome, role")
       .eq("email", email.toLowerCase())
       .single();
 
@@ -53,7 +53,11 @@ export async function POST(request: NextRequest) {
       .delete()
       .eq("email", email.toLowerCase());
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      nome: monitor.nome,
+      role: monitor.role,
+    });
   } catch (error) {
     console.error("Error in monitor OTP verification:", error);
     return NextResponse.json(
