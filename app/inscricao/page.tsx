@@ -533,6 +533,13 @@ export default function InscricaoPage() {
 
   return (
     <>
+      {/* Script do Jivo Chat */}
+      <script
+        src="//code.jivosite.com/widget/oCHLatEDsf"
+        async
+        suppressHydrationWarning
+      />
+
       {/* Countdown e Urgência - Posicionado no topo da página, logo após o Header */}
       <div className="relative z-50 bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 shadow-lg -mt-16 pt-16">
         <div className="max-w-6xl mx-auto px-4 py-4">

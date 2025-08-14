@@ -49,10 +49,13 @@ import {
   Edit,
   Trash2,
   MoreVertical,
+  FileDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ModalNovaInscricao } from "@/components/ui/modal-nova-inscricao";
 import { ModalNovoMonitor } from "@/components/ui/modal-novo-monitor";
+import { DataPagination } from "@/components/ui/data-pagination";
+import { ExportModal } from "@/components/ui/export-modal";
 
 interface Inscricao {
   id: string;
@@ -200,10 +203,30 @@ export default function MonitorPage() {
   const [isLoadingInscricoes, setIsLoadingInscricoes] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
+  // Estados para paginação
+  const [inscricoesPagination, setInscricoesPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 20,
+  });
+  const [monitoresPagination, setMonitoresPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10,
+  });
+
   // Estados para controlar os modais
   const [isModalNovaInscricaoOpen, setIsModalNovaInscricaoOpen] =
     useState(false);
   const [isModalNovoMonitorOpen, setIsModalNovoMonitorOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Estados para dados completos (estatísticas e busca)
+  const [allInscricoes, setAllInscricoes] = useState<Inscricao[]>([]);
+  const [allMonitores, setAllMonitores] = useState<any[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   // Ref para scroll automático para a lista
   const inscricoesListRef = useRef<HTMLDivElement>(null);
@@ -296,10 +319,11 @@ export default function MonitorPage() {
     }
   }, [isClient, monitorEmail]);
 
-  // Carregar inscrições quando entrar no dashboard
+  // Carregar dados quando entrar no dashboard
   useEffect(() => {
     if (step === "dashboard" && isAuthenticated) {
       loadInscricoes();
+      loadAllInscricoes(); // Carregar dados completos também
     }
   }, [step, isAuthenticated]);
 
@@ -363,16 +387,18 @@ export default function MonitorPage() {
 
   // Funções para lidar com o sucesso dos modais
   const handleNovaInscricaoSuccess = () => {
-    // Recarregar as inscrições se estivermos na view de inscrições
+    // Recarregar dados completos e paginados
+    loadAllInscricoes();
     if (viewMode === "inscricoes") {
-      loadInscricoes(); // Carregar diretamente ao invés de recarregar a página
+      loadInscricoes();
     }
   };
 
   const handleNovoMonitorSuccess = () => {
-    // Recarregar os monitores se estivermos na view de monitores
+    // Recarregar dados completos e paginados
+    loadAllMonitores();
     if (viewMode === "monitores") {
-      loadMonitores(); // Carregar diretamente ao invés de recarregar a página
+      loadMonitores();
     }
   };
 
@@ -500,61 +526,132 @@ export default function MonitorPage() {
     }
   };
 
-  const loadInscricoes = useCallback(async () => {
-    setIsLoadingInscricoes(true);
-    try {
-      const response = await fetch("/api/monitor/inscricoes");
-      if (response.ok) {
-        const data = await response.json();
-        setInscricoes(data);
-        setFilteredInscricoes(data);
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar inscrições.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingInscricoes(false);
-    }
-  }, []);
+  const loadInscricoes = useCallback(
+    async (page: number = 1) => {
+      setIsLoadingInscricoes(true);
+      try {
+        const response = await fetch(
+          `/api/monitor/inscricoes?page=${page}&limit=${inscricoesPagination.itemsPerPage}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setInscricoes(data.data || []);
+          setFilteredInscricoes(data.data || []);
 
-  // Função para carregar monitores
-  const loadMonitores = useCallback(async () => {
-    try {
-      const response = await fetch("/api/monitor/monitores");
-      if (response.ok) {
-        const data = await response.json();
-        setMonitores(data);
-        setFilteredMonitores(data);
-      } else {
+          // Atualizar informações de paginação
+          if (data.pagination) {
+            setInscricoesPagination((prev) => ({
+              ...prev,
+              currentPage: data.pagination.currentPage,
+              totalPages: data.pagination.totalPages,
+              totalItems: data.pagination.totalItems,
+            }));
+          }
+        }
+      } catch (error) {
         toast({
           title: "Erro",
-          description: "Erro ao carregar lista de monitores",
+          description: "Erro ao carregar inscrições.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingInscricoes(false);
+      }
+    },
+    [inscricoesPagination.itemsPerPage]
+  );
+
+  // Função para carregar monitores
+  const loadMonitores = useCallback(
+    async (page: number = 1) => {
+      try {
+        const response = await fetch(
+          `/api/monitor/monitores?page=${page}&limit=${monitoresPagination.itemsPerPage}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMonitores(data.data || []);
+          setFilteredMonitores(data.data || []);
+
+          // Atualizar informações de paginação
+          if (data.pagination) {
+            setMonitoresPagination((prev) => ({
+              ...prev,
+              currentPage: data.pagination.currentPage,
+              totalPages: data.pagination.totalPages,
+              totalItems: data.pagination.totalItems,
+            }));
+          }
+        } else {
+          toast({
+            title: "Erro",
+            description: "Erro ao carregar lista de monitores",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading monitores:", error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar monitores",
           variant: "destructive",
         });
       }
+    },
+    [monitoresPagination.itemsPerPage]
+  );
+
+  // Funções para carregar dados completos (para estatísticas e busca)
+  const loadAllInscricoes = useCallback(async () => {
+    setIsLoadingStats(true);
+    try {
+      const response = await fetch("/api/monitor/stats/inscricoes");
+      if (response.ok) {
+        const data = await response.json();
+        setAllInscricoes(data || []);
+      }
     } catch (error) {
-      console.error("Error loading monitores:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar monitores",
-        variant: "destructive",
-      });
+      console.error("Error loading all inscricoes:", error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  const loadAllMonitores = useCallback(async () => {
+    try {
+      const response = await fetch("/api/monitor/stats/monitores");
+      if (response.ok) {
+        const data = await response.json();
+        setAllMonitores(data || []);
+      }
+    } catch (error) {
+      console.error("Error loading all monitores:", error);
     }
   }, []);
 
   // Carregar dados quando a visualização mudar
   useEffect(() => {
     if (isAuthenticated && step === "dashboard") {
+      // Carregar dados completos para estatísticas (sempre)
+      loadAllInscricoes();
+      loadAllMonitores();
+
+      // Carregar dados paginados para exibição
       if (viewMode === "inscricoes") {
         loadInscricoes();
       } else if (viewMode === "monitores") {
         loadMonitores();
       }
     }
-  }, [isAuthenticated, step, viewMode, loadInscricoes, loadMonitores]);
+  }, [
+    isAuthenticated,
+    step,
+    viewMode,
+    loadInscricoes,
+    loadMonitores,
+    loadAllInscricoes,
+    loadAllMonitores,
+  ]);
 
   // Limpar busca quando mudar o modo de visualização
   useEffect(() => {
@@ -629,7 +726,7 @@ export default function MonitorPage() {
           return 0;
         };
 
-        const filteredMonitors = monitores
+        const filteredMonitors = allMonitores
           .filter((monitor) => {
             // Busca por nome (com score)
             const nameScore = getNameScore(monitor.nome, normalizedTerm);
@@ -663,7 +760,7 @@ export default function MonitorPage() {
 
         setFilteredMonitores(filteredMonitors);
       } else {
-        // Se estiver no modo inscrições, filtrar inscrições (código existente)
+        // Se estiver no modo inscrições, filtrar inscrições usando dados completos
         const normalizedCPFTerm = normalizeCPF(term);
         const normalizedPhoneTerm = normalizePhone(term);
 
@@ -692,7 +789,7 @@ export default function MonitorPage() {
           return 0;
         };
 
-        const filtered = inscricoes
+        const filtered = allInscricoes
           .filter((inscricao) => {
             // Busca por nome (com score)
             const nameScore = getNameScore(inscricao.nome, normalizedTerm);
@@ -774,7 +871,7 @@ export default function MonitorPage() {
         }, 800); // Espera 800ms após parar de digitar
       }
     },
-    [viewMode, monitores, inscricoes]
+    [viewMode, allMonitores, allInscricoes, monitores, inscricoes]
   );
 
   const handleStatusChange = useCallback(
@@ -787,6 +884,7 @@ export default function MonitorPage() {
         });
 
         if (response.ok) {
+          // Atualizar dados paginados
           setInscricoes((prev) =>
             prev.map((inscricao) =>
               inscricao.id === id
@@ -795,6 +893,14 @@ export default function MonitorPage() {
             )
           );
           setFilteredInscricoes((prev) =>
+            prev.map((inscricao) =>
+              inscricao.id === id
+                ? { ...inscricao, status: newStatus }
+                : inscricao
+            )
+          );
+          // Atualizar dados completos para estatísticas
+          setAllInscricoes((prev) =>
             prev.map((inscricao) =>
               inscricao.id === id
                 ? { ...inscricao, status: newStatus }
@@ -857,7 +963,8 @@ export default function MonitorPage() {
             title: "Arquivo enviado",
             description: "Arquivo enviado com sucesso.",
           });
-          loadInscricoes(); // Recarregar para atualizar os dados
+          loadInscricoes(); // Recarregar dados paginados
+          loadAllInscricoes(); // Recarregar dados completos
         } else {
           toast({
             title: "Erro",
@@ -949,13 +1056,19 @@ export default function MonitorPage() {
         console.log("Response data:", responseData);
 
         if (response.ok) {
-          // Atualizar as listas locais
+          // Atualizar dados paginados
           setMonitores((prev) =>
             prev.map((monitor) =>
               monitor.id === monitorId ? { ...monitor, role: newRole } : monitor
             )
           );
           setFilteredMonitores((prev) =>
+            prev.map((monitor) =>
+              monitor.id === monitorId ? { ...monitor, role: newRole } : monitor
+            )
+          );
+          // Atualizar dados completos
+          setAllMonitores((prev) =>
             prev.map((monitor) =>
               monitor.id === monitorId ? { ...monitor, role: newRole } : monitor
             )
@@ -1010,11 +1123,15 @@ export default function MonitorPage() {
         });
 
         if (response.ok) {
-          // Remover das listas locais
+          // Remover das listas paginadas
           setMonitores((prev) =>
             prev.filter((monitor) => monitor.id !== monitorId)
           );
           setFilteredMonitores((prev) =>
+            prev.filter((monitor) => monitor.id !== monitorId)
+          );
+          // Remover dos dados completos
+          setAllMonitores((prev) =>
             prev.filter((monitor) => monitor.id !== monitorId)
           );
 
@@ -1039,6 +1156,23 @@ export default function MonitorPage() {
       }
     },
     []
+  );
+
+  // Funções de paginação
+  const handleInscricoesPageChange = useCallback(
+    async (page: number) => {
+      setSearchTerm(""); // Limpar busca ao mudar página
+      await loadInscricoes(page);
+    },
+    [loadInscricoes]
+  );
+
+  const handleMonitoresPageChange = useCallback(
+    async (page: number) => {
+      setSearchTerm(""); // Limpar busca ao mudar página
+      await loadMonitores(page);
+    },
+    [loadMonitores]
   );
 
   // Componentes auxiliares
@@ -1560,13 +1694,13 @@ export default function MonitorPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {isLoadingInscricoes ? (
+              {isLoadingStats ? (
                 <StatsShimmer />
               ) : (
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
                   <div className="text-center p-2 md:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg md:rounded-xl border border-blue-200">
                     <div className="text-lg md:text-2xl font-bold text-blue-700">
-                      {inscricoes.length}
+                      {allInscricoes.length}
                     </div>
                     <p className="text-xs md:text-sm font-medium text-blue-600">
                       Total
@@ -1574,7 +1708,10 @@ export default function MonitorPage() {
                   </div>
                   <div className="text-center p-2 md:p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg md:rounded-xl border border-yellow-200">
                     <div className="text-lg md:text-2xl font-bold text-yellow-700">
-                      {inscricoes.filter((i) => i.status === "INSCRITA").length}
+                      {
+                        allInscricoes.filter((i) => i.status === "INSCRITA")
+                          .length
+                      }
                     </div>
                     <p className="text-xs md:text-sm font-medium text-yellow-600">
                       Inscritas
@@ -1583,7 +1720,7 @@ export default function MonitorPage() {
                   <div className="text-center p-2 md:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg md:rounded-xl border border-green-200">
                     <div className="text-lg md:text-2xl font-bold text-green-700">
                       {
-                        inscricoes.filter((i) => i.status === "MATRICULADA")
+                        allInscricoes.filter((i) => i.status === "MATRICULADA")
                           .length
                       }
                     </div>
@@ -1594,7 +1731,7 @@ export default function MonitorPage() {
                   <div className="text-center p-2 md:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg md:rounded-xl border border-orange-200">
                     <div className="text-lg md:text-2xl font-bold text-orange-700">
                       {
-                        inscricoes.filter((i) => i.status === "EXCEDENTE")
+                        allInscricoes.filter((i) => i.status === "EXCEDENTE")
                           .length
                       }
                     </div>
@@ -1605,7 +1742,7 @@ export default function MonitorPage() {
                   <div className="text-center p-2 md:p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg md:rounded-xl border border-red-200">
                     <div className="text-lg md:text-2xl font-bold text-red-700">
                       {
-                        inscricoes.filter((i) => i.status === "CANCELADA")
+                        allInscricoes.filter((i) => i.status === "CANCELADA")
                           .length
                       }
                     </div>
@@ -1622,7 +1759,7 @@ export default function MonitorPage() {
           <div className="grid md:grid-cols-2 gap-3 md:gap-6">
             {/* Jogos Digitais */}
             {(() => {
-              const jogosInscricoes = inscricoes.filter(
+              const jogosInscricoes = allInscricoes.filter(
                 (i) => i.curso === "Jogos"
               );
               const jogosStats = {
@@ -1719,7 +1856,7 @@ export default function MonitorPage() {
 
             {/* Robótica */}
             {(() => {
-              const roboticaInscricoes = inscricoes.filter(
+              const roboticaInscricoes = allInscricoes.filter(
                 (i) => i.curso === "Robótica"
               );
               const roboticaStats = {
@@ -1865,7 +2002,9 @@ export default function MonitorPage() {
                           : "bg-gray-200 text-gray-600 border-gray-300"
                       }`}
                     >
-                      {filteredInscricoes.length}
+                      {searchTerm
+                        ? filteredInscricoes.length
+                        : allInscricoes.length}
                     </Badge>
                   </button>
                   <button
@@ -1885,7 +2024,9 @@ export default function MonitorPage() {
                           : "bg-gray-200 text-gray-600 border-gray-300"
                       }`}
                     >
-                      {filteredMonitores.length}
+                      {searchTerm
+                        ? filteredMonitores.length
+                        : allMonitores.length}
                     </Badge>
                   </button>
                 </div>
@@ -2007,6 +2148,23 @@ export default function MonitorPage() {
                             </div>
                           </div>
                         </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsExportModalOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 transition-all duration-200 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center shadow-sm">
+                            <FileDown className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Exportar Lista
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Gerar PDF ou planilha Excel
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
                       </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -2019,258 +2177,292 @@ export default function MonitorPage() {
         {/* Lista de Inscrições ou Monitores - Sem Header */}
         <Card className="bg-white shadow-lg border-0" ref={inscricoesListRef}>
           <CardContent className="p-0">
-            {viewMode === "monitores" ? (
-              // Visualização de Monitores
-              !filteredMonitores || filteredMonitores.length === 0 ? (
+            {/* Visualização de Inscrições */}
+            {viewMode === "inscricoes" ? (
+              isLoadingInscricoes ? (
+                // Shimmer effect durante o carregamento
+                <div className="divide-y divide-gray-100">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <InscricaoShimmer key={index} />
+                  ))}
+                </div>
+              ) : filteredInscricoes.length === 0 ? (
                 <div className="text-center py-12">
-                  <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-600 font-medium">
                     {searchTerm
-                      ? "Nenhum monitor encontrado"
-                      : "Nenhum monitor cadastrado"}
+                      ? "Nenhuma inscrição encontrada"
+                      : "Nenhuma inscrição cadastrada"}
                   </p>
                   <p className="text-gray-500 text-sm mt-1">
                     {searchTerm
                       ? "Tente buscar por outro termo"
-                      : "Os monitores aparecerão aqui quando forem criados"}
+                      : "As inscrições aparecerão aqui quando forem criadas"}
                   </p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {filteredMonitores.map((monitor) => (
-                    <MonitorCard key={monitor.id} monitor={monitor} />
-                  ))}
-                </div>
-              )
-            ) : // Visualização de Inscrições (código existente)
-            isLoadingInscricoes ? (
-              // Shimmer effect durante o carregamento
-              <div className="divide-y divide-gray-100">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <InscricaoShimmer key={index} />
-                ))}
-              </div>
-            ) : filteredInscricoes.length === 0 ? (
-              <div className="text-center py-12">
-                <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">
-                  {searchTerm
-                    ? "Nenhuma inscrição encontrada"
-                    : "Nenhuma inscrição cadastrada"}
-                </p>
-                <p className="text-gray-500 text-sm mt-1">
-                  {searchTerm
-                    ? "Tente buscar por outro termo"
-                    : "As inscrições aparecerão aqui quando forem criadas"}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {filteredInscricoes.map((inscricao, index) => {
-                  const isExpanded = expandedCards.has(inscricao.id);
+                  {filteredInscricoes.map((inscricao, index) => {
+                    const isExpanded = expandedCards.has(inscricao.id);
 
-                  return (
-                    <div
-                      key={inscricao.id}
-                      className="p-4 hover:bg-gradient-to-r hover:from-pink-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-pink-300 hover:shadow-sm"
-                    >
-                      {/* Header sempre visível - Linha 1 e 2 */}
-                      <div className="space-y-3">
-                        {/* Linha 1: Avatar + Nome + Status */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            {/* Avatar */}
-                            <div
-                              className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
-                                inscricao.curso === "Jogos"
-                                  ? "bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-200"
-                                  : "bg-gradient-to-br from-blue-100 to-cyan-100 border-2 border-blue-200"
-                              }`}
-                            >
-                              <span
-                                className={`font-bold text-sm ${
+                    return (
+                      <div
+                        key={inscricao.id}
+                        className="p-4 hover:bg-gradient-to-r hover:from-pink-50/30 hover:to-purple-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-pink-300 hover:shadow-sm"
+                      >
+                        {/* Header sempre visível - Linha 1 e 2 */}
+                        <div className="space-y-3">
+                          {/* Linha 1: Avatar + Nome + Status */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {/* Avatar */}
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
                                   inscricao.curso === "Jogos"
-                                    ? "text-purple-700"
-                                    : "text-blue-700"
+                                    ? "bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-200"
+                                    : "bg-gradient-to-br from-blue-100 to-cyan-100 border-2 border-blue-200"
                                 }`}
                               >
-                                {(() => {
-                                  const nomes = inscricao.nome
-                                    .trim()
-                                    .split(" ");
-                                  const primeiroNome =
-                                    nomes[0]?.charAt(0)?.toUpperCase() || "";
-                                  const segundoNome =
-                                    nomes[1]?.charAt(0)?.toUpperCase() || "";
-                                  return primeiroNome + segundoNome;
-                                })()}
-                              </span>
+                                <span
+                                  className={`font-bold text-sm ${
+                                    inscricao.curso === "Jogos"
+                                      ? "text-purple-700"
+                                      : "text-blue-700"
+                                  }`}
+                                >
+                                  {(() => {
+                                    const nomes = inscricao.nome
+                                      .trim()
+                                      .split(" ");
+                                    const primeiroNome =
+                                      nomes[0]?.charAt(0)?.toUpperCase() || "";
+                                    const segundoNome =
+                                      nomes[1]?.charAt(0)?.toUpperCase() || "";
+                                    return primeiroNome + segundoNome;
+                                  })()}
+                                </span>
+                              </div>
+
+                              {/* Nome */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 truncate text-base">
+                                  {inscricao.nome}
+                                </h3>
+                              </div>
+
+                              {/* Status */}
+                              <div className="flex-shrink-0">
+                                {getStatusBadge(inscricao.status)}
+                              </div>
                             </div>
 
-                            {/* Nome */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 truncate text-base">
-                                {inscricao.nome}
-                              </h3>
-                            </div>
-
-                            {/* Status */}
-                            <div className="flex-shrink-0">
-                              {getStatusBadge(inscricao.status)}
-                            </div>
+                            {/* Botão de expansão */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCardExpansion(inscricao.id)}
+                              className="flex-shrink-0 ml-2 p-1 h-8 w-8 rounded-full hover:bg-gray-100"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-gray-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-600" />
+                              )}
+                            </Button>
                           </div>
 
-                          {/* Botão de expansão */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleCardExpansion(inscricao.id)}
-                            className="flex-shrink-0 ml-2 p-1 h-8 w-8 rounded-full hover:bg-gray-100"
-                          >
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-gray-600" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-600" />
-                            )}
-                          </Button>
-                        </div>
-
-                        {/* Linha 2: Curso + Data de inscrição */}
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
-                            {inscricao.curso === "Jogos" ? (
-                              <Gamepad2 className="w-3 h-3 text-purple-600" />
-                            ) : (
-                              <Bot className="w-3 h-3 text-blue-600" />
-                            )}
-                            <span className="font-medium">
-                              {inscricao.curso === "Jogos"
-                                ? "Jogos"
-                                : "Robótica"}
+                          {/* Linha 2: Curso + Data de inscrição */}
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
+                              {inscricao.curso === "Jogos" ? (
+                                <Gamepad2 className="w-3 h-3 text-purple-600" />
+                              ) : (
+                                <Bot className="w-3 h-3 text-blue-600" />
+                              )}
+                              <span className="font-medium">
+                                {inscricao.curso === "Jogos"
+                                  ? "Jogos"
+                                  : "Robótica"}
+                              </span>
                             </span>
-                          </span>
-                          <span className="flex items-center gap-1 text-gray-500">
-                            <Calendar className="w-3 h-3" />
-                            <span>{formatDate(inscricao.created_at)}</span>
-                          </span>
-                        </div>
+                            <span className="flex items-center gap-1 text-gray-500">
+                              <Calendar className="w-3 h-3" />
+                              <span>{formatDate(inscricao.created_at)}</span>
+                            </span>
+                          </div>
 
-                        {/* Conteúdo expansível */}
-                        {isExpanded && (
-                          <div className="space-y-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
-                            {/* Informações pessoais */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-2">
-                                <h4 className="font-medium text-gray-900 text-sm">
-                                  Informações Pessoais
-                                </h4>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                                    <Mail className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate">
-                                      {inscricao.email}
-                                    </span>
-                                  </div>
-                                  <div className="text-sm text-gray-600">
-                                    <span className="font-medium">CPF:</span>{" "}
-                                    {inscricao.cpf}
-                                  </div>
-                                  <div className="text-sm text-gray-600">
-                                    <span className="font-medium">
-                                      Nascimento:
-                                    </span>{" "}
-                                    {formatDate(inscricao.data_nascimento)}
-                                  </div>
-                                  {inscricao.nome_responsavel && (
+                          {/* Conteúdo expansível */}
+                          {isExpanded && (
+                            <div className="space-y-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                              {/* Informações pessoais */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <h4 className="font-medium text-gray-900 text-sm">
+                                    Informações Pessoais
+                                  </h4>
+                                  <div className="space-y-1">
                                     <div className="flex items-center gap-1 text-sm text-gray-600">
-                                      <Users className="w-3 h-3 flex-shrink-0" />
+                                      <Mail className="w-3 h-3 flex-shrink-0" />
                                       <span className="truncate">
-                                        {inscricao.nome_responsavel}
+                                        {inscricao.email}
                                       </span>
                                     </div>
-                                  )}
-                                  {inscricao.telefone_whatsapp && (
+                                    <div className="text-sm text-gray-600">
+                                      <span className="font-medium">CPF:</span>{" "}
+                                      {inscricao.cpf}
+                                    </div>
                                     <div className="text-sm text-gray-600">
                                       <span className="font-medium">
-                                        WhatsApp:
+                                        Nascimento:
                                       </span>{" "}
-                                      {inscricao.telefone_whatsapp}
+                                      {formatDate(inscricao.data_nascimento)}
                                     </div>
-                                  )}
+                                    {inscricao.nome_responsavel && (
+                                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                                        <Users className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">
+                                          {inscricao.nome_responsavel}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {inscricao.telefone_whatsapp && (
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">
+                                          WhatsApp:
+                                        </span>{" "}
+                                        {inscricao.telefone_whatsapp}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <h4 className="font-medium text-gray-900 text-sm">
+                                    Informações Acadêmicas
+                                  </h4>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                                      <GraduationCap className="w-3 h-3 text-purple-600" />
+                                      <span>{inscricao.escolaridade}</span>
+                                    </div>
+                                    {inscricao.ano_escolar && (
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">
+                                          Ano:
+                                        </span>{" "}
+                                        {inscricao.ano_escolar}
+                                      </div>
+                                    )}
+                                    {inscricao.escola && (
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">
+                                          Escola:
+                                        </span>{" "}
+                                        {inscricao.escola}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 
+                              {/* Endereço */}
                               <div className="space-y-2">
                                 <h4 className="font-medium text-gray-900 text-sm">
-                                  Informações Acadêmicas
+                                  Endereço
                                 </h4>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                                    <GraduationCap className="w-3 h-3 text-purple-600" />
-                                    <span>{inscricao.escolaridade}</span>
-                                  </div>
-                                  {inscricao.ano_escolar && (
-                                    <div className="text-sm text-gray-600">
-                                      <span className="font-medium">Ano:</span>{" "}
-                                      {inscricao.ano_escolar}
-                                    </div>
-                                  )}
-                                  {inscricao.escola && (
-                                    <div className="text-sm text-gray-600">
-                                      <span className="font-medium">
-                                        Escola:
-                                      </span>{" "}
-                                      {inscricao.escola}
-                                    </div>
-                                  )}
+                                <div className="text-sm text-gray-600">
+                                  <p>
+                                    {inscricao.logradouro}, {inscricao.numero}
+                                    {inscricao.complemento &&
+                                      `, ${inscricao.complemento}`}
+                                  </p>
+                                  <p>
+                                    {inscricao.bairro} - {inscricao.cidade}/
+                                    {inscricao.estado}
+                                  </p>
+                                  <p>CEP: {inscricao.cep}</p>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* Endereço */}
-                            <div className="space-y-2">
-                              <h4 className="font-medium text-gray-900 text-sm">
-                                Endereço
-                              </h4>
-                              <div className="text-sm text-gray-600">
-                                <p>
-                                  {inscricao.logradouro}, {inscricao.numero}
-                                  {inscricao.complemento &&
-                                    `, ${inscricao.complemento}`}
-                                </p>
-                                <p>
-                                  {inscricao.bairro} - {inscricao.cidade}/
-                                  {inscricao.estado}
-                                </p>
-                                <p>CEP: {inscricao.cep}</p>
+                              {/* Botão de ação */}
+                              <div className="flex justify-end pt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    router.push(
+                                      `/monitor/inscricao/${
+                                        inscricao.id
+                                      }?email=${encodeURIComponent(email)}`
+                                    )
+                                  }
+                                  className="hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:border-pink-300 hover:text-pink-700 transition-all duration-200 border-gray-300 text-gray-700"
+                                >
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver detalhes completos
+                                </Button>
                               </div>
                             </div>
-
-                            {/* Botão de ação */}
-                            <div className="flex justify-end pt-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  router.push(
-                                    `/monitor/inscricao/${
-                                      inscricao.id
-                                    }?email=${encodeURIComponent(email)}`
-                                  )
-                                }
-                                className="hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:border-pink-300 hover:text-pink-700 transition-all duration-200 border-gray-300 text-gray-700"
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                Ver detalhes completos
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
+
+            {/* Paginação para Inscrições */}
+            {viewMode === "inscricoes" &&
+              !isLoadingInscricoes &&
+              inscricoesPagination.totalPages > 1 && (
+                <DataPagination
+                  currentPage={inscricoesPagination.currentPage}
+                  totalPages={inscricoesPagination.totalPages}
+                  totalItems={inscricoesPagination.totalItems}
+                  itemsPerPage={inscricoesPagination.itemsPerPage}
+                  onPageChange={handleInscricoesPageChange}
+                  isLoading={isLoadingInscricoes}
+                />
+              )}
+
+            {/* Lista de Monitores */}
+            {viewMode === "monitores" && (
+              <>
+                {filteredMonitores.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 font-medium">
+                      {searchTerm
+                        ? "Nenhum monitor encontrado"
+                        : "Nenhum monitor cadastrado"}
+                    </p>
+                    <p className="text-gray-500 text-sm mt-1">
+                      {searchTerm
+                        ? "Tente buscar por outro termo"
+                        : "Os monitores aparecerão aqui quando forem criados"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {filteredMonitores.map((monitor) => (
+                      <MonitorCard key={monitor.id} monitor={monitor} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Paginação para Monitores */}
+                {monitoresPagination.totalPages > 1 && (
+                  <DataPagination
+                    currentPage={monitoresPagination.currentPage}
+                    totalPages={monitoresPagination.totalPages}
+                    totalItems={monitoresPagination.totalItems}
+                    itemsPerPage={monitoresPagination.itemsPerPage}
+                    onPageChange={handleMonitoresPageChange}
+                    isLoading={false}
+                  />
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -2287,6 +2479,13 @@ export default function MonitorPage() {
         isOpen={isModalNovoMonitorOpen}
         onClose={() => setIsModalNovoMonitorOpen(false)}
         onSuccess={handleNovoMonitorSuccess}
+      />
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        allInscricoes={allInscricoes}
+        monitorName={monitorName}
       />
     </div>
   );
