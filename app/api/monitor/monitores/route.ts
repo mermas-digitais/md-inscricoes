@@ -8,11 +8,32 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    // Buscar todos os monitores
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+
+    // Calcular offset
+    const offset = (page - 1) * limit;
+
+    // Buscar total de registros para paginação
+    const { count, error: countError } = await supabase
+      .from("monitores")
+      .select("*", { count: "exact", head: true });
+
+    if (countError) {
+      console.error("Count error:", countError);
+      return NextResponse.json(
+        { error: "Erro ao contar monitores" },
+        { status: 500 }
+      );
+    }
+
+    // Buscar todos os monitores paginados
     const { data: monitores, error } = await supabase
       .from("monitores")
       .select("id, nome, email, role, created_at")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error("Error fetching monitores:", error);
@@ -22,7 +43,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(monitores);
+    // Calcular informações de paginação
+    const totalPages = Math.ceil((count || 0) / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return NextResponse.json({
+      data: monitores,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: count || 0,
+        itemsPerPage: limit,
+        hasNextPage,
+        hasPrevPage,
+      },
+    });
   } catch (error) {
     console.error("Error in monitores API:", error);
     return NextResponse.json(
