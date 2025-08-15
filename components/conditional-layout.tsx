@@ -11,12 +11,12 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
-  const [isMonitorDashboard, setIsMonitorDashboard] = useState(false);
+  const [shouldHideHeader, setShouldHideHeader] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Função para verificar se é dashboard do monitor
-  const checkIfMonitorDashboard = () => {
-    if (!isMounted || pathname !== "/monitor") {
+  // Função para verificar se é dashboard do monitor ou painel autenticado
+  const checkIfHideHeader = () => {
+    if (!isMounted) {
       return false;
     }
 
@@ -27,11 +27,18 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         const now = Date.now();
         const sessionTimeout = 30 * 60 * 1000; // 30 minutos
 
-        // Se há sessão válida, é o dashboard
-        return now - timestamp < sessionTimeout;
+        // Se há sessão válida e estamos em rotas que têm header próprio
+        if (now - timestamp < sessionTimeout) {
+          return (
+            pathname === "/monitor" ||
+            pathname === "/painel" ||
+            pathname.startsWith("/matriculas") ||
+            pathname.startsWith("/ensino")
+          );
+        }
       }
     } catch (error) {
-      console.log("Erro ao verificar sessão do monitor:", error);
+      console.log("Erro ao verificar sessão:", error);
     }
 
     return false;
@@ -46,13 +53,13 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   useEffect(() => {
     if (!isMounted) return;
 
-    const isDashboard = checkIfMonitorDashboard();
-    setIsMonitorDashboard(isDashboard);
+    const hideHeader = checkIfHideHeader();
+    setShouldHideHeader(hideHeader);
 
     // Verificar periodicamente para mudanças no localStorage
     const interval = setInterval(() => {
-      const isDashboard = checkIfMonitorDashboard();
-      setIsMonitorDashboard(isDashboard);
+      const hideHeader = checkIfHideHeader();
+      setShouldHideHeader(hideHeader);
     }, 500); // Verificar a cada 500ms
 
     return () => clearInterval(interval);
@@ -64,8 +71,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === "monitorSession") {
-        const isDashboard = checkIfMonitorDashboard();
-        setIsMonitorDashboard(isDashboard);
+        const hideHeader = checkIfHideHeader();
+        setShouldHideHeader(hideHeader);
       }
     };
 
@@ -83,15 +90,15 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     localStorage.setItem = function (key, value) {
       originalSetItem.call(this, key, value);
       if (key === "monitorSession") {
-        const isDashboard = checkIfMonitorDashboard();
-        setIsMonitorDashboard(isDashboard);
+        const hideHeader = checkIfHideHeader();
+        setShouldHideHeader(hideHeader);
       }
     };
 
     localStorage.removeItem = function (key) {
       originalRemoveItem.call(this, key);
       if (key === "monitorSession") {
-        setIsMonitorDashboard(false);
+        setShouldHideHeader(false);
       }
     };
 
@@ -113,11 +120,11 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   return (
     <>
-      {/* Renderizar header exceto no dashboard autenticado do monitor */}
-      {!isMonitorDashboard && <Header />}
+      {/* Renderizar header exceto nas rotas que têm header próprio */}
+      {!shouldHideHeader && <Header />}
 
       {/* Main com padding condicional */}
-      <main className={isMonitorDashboard ? "" : "pt-16"}>{children}</main>
+      <main className={shouldHideHeader ? "" : "pt-16"}>{children}</main>
     </>
   );
 }

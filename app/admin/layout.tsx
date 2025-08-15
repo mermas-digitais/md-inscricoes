@@ -20,7 +20,7 @@ export default function AdminLayout({
         setIsLoading(false);
       } catch (error) {
         console.error("Erro ao verificar acesso:", error);
-        router.push("/monitor");
+        router.push("/painel");
       }
     };
 
