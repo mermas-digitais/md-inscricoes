@@ -129,7 +129,7 @@ export default function EmailManager() {
         });
 
         const response = await fetch(
-          `/api/monitor/inscricoes?count=true&${params}`
+          `/api/matriculas/inscricoes?count=true&${params}`
         );
         const data = await response.json();
         setRecipientCount(data.total || 0);
@@ -152,7 +152,7 @@ export default function EmailManager() {
     setResult(null);
 
     try {
-      const response = await fetch("/api/monitor/send-mass-email", {
+      const response = await fetch("/api/matriculas/send-mass-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

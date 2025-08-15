@@ -154,7 +154,8 @@ export default function TurmasPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data || [];
         setTurmas(data);
         setFilteredTurmas(data);
       } else {
@@ -188,7 +189,8 @@ export default function TurmasPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data || [];
         setCursos(data.filter((curso: Curso) => curso.ativo));
       }
     } catch (error) {

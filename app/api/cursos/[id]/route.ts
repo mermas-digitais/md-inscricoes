@@ -71,8 +71,14 @@ export async function PUT(
     if (authError) return authError;
 
     const { id } = params;
-    const { nome_curso, descricao, carga_horaria, publico_alvo } =
-      await request.json();
+    const {
+      nome_curso,
+      descricao,
+      carga_horaria,
+      publico_alvo,
+      status,
+      projeto,
+    } = await request.json();
 
     // Validar UUID
     const uuidRegex =
@@ -129,6 +135,20 @@ export async function PUT(
       );
     }
 
+    if (status && !["ativo", "inativo"].includes(status)) {
+      return NextResponse.json(
+        { error: "Status deve ser 'ativo' ou 'inativo'" },
+        { status: 400 }
+      );
+    }
+
+    if (projeto && !["Meninas STEM", "Mermãs Digitais"].includes(projeto)) {
+      return NextResponse.json(
+        { error: "Projeto deve ser 'Meninas STEM' ou 'Mermãs Digitais'" },
+        { status: 400 }
+      );
+    }
+
     // Preparar dados para atualização (apenas campos fornecidos)
     const updateData: any = {};
     if (nome_curso !== undefined) updateData.nome_curso = nome_curso.trim();
@@ -138,6 +158,9 @@ export async function PUT(
       updateData.carga_horaria = carga_horaria || null;
     if (publico_alvo !== undefined)
       updateData.publico_alvo = publico_alvo || null;
+    if (status !== undefined) updateData.status = status || "ativo";
+    if (projeto !== undefined)
+      updateData.projeto = projeto || "Mermãs Digitais";
 
     // Se nenhum campo foi fornecido para atualização
     if (Object.keys(updateData).length === 0) {

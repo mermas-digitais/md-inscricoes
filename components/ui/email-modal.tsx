@@ -377,7 +377,7 @@ export function EmailModal({
     setShowResults(false);
 
     try {
-      const response = await fetch("/api/monitor/send-mass-email", {
+      const response = await fetch("/api/matriculas/send-mass-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

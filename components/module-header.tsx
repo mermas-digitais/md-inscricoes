@@ -111,11 +111,13 @@ export function ModuleHeader({
               onClick={handleNavigateToPanel}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-sm">MD</span>
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gray-900 font-poppins">
+              <img
+                src="/assets/images/md_logo.svg"
+                alt="Mermãs Digitais"
+                className="h-10 w-auto object-contain"
+              />
+              <div className="hidden sm:block border-l border-gray-300 pl-3">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
                   Plataforma de Gestão
                 </h1>
               </div>

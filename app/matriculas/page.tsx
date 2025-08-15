@@ -433,7 +433,7 @@ export default function MonitorPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/monitor/verify-email", {
+      const response = await fetch("/api/matriculas/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -485,7 +485,7 @@ export default function MonitorPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/monitor/verify-otp", {
+      const response = await fetch("/api/matriculas/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code: accessCode }),
@@ -557,7 +557,7 @@ export default function MonitorPage() {
       setIsLoadingInscricoes(true);
       try {
         const response = await fetch(
-          `/api/monitor/inscricoes?page=${page}&limit=${inscricoesPagination.itemsPerPage}`
+          `/api/matriculas/inscricoes?page=${page}&limit=${inscricoesPagination.itemsPerPage}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -592,7 +592,7 @@ export default function MonitorPage() {
     async (page: number = 1) => {
       try {
         const response = await fetch(
-          `/api/monitor/monitores?page=${page}&limit=${monitoresPagination.itemsPerPage}`
+          `/api/matriculas/monitores?page=${page}&limit=${monitoresPagination.itemsPerPage}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -631,7 +631,7 @@ export default function MonitorPage() {
   const loadAllInscricoes = useCallback(async () => {
     setIsLoadingStats(true);
     try {
-      const response = await fetch("/api/monitor/stats/inscricoes");
+      const response = await fetch("/api/matriculas/stats/inscricoes");
       if (response.ok) {
         const data = await response.json();
         setAllInscricoes(data || []);
@@ -645,7 +645,7 @@ export default function MonitorPage() {
 
   const loadAllMonitores = useCallback(async () => {
     try {
-      const response = await fetch("/api/monitor/stats/monitores");
+      const response = await fetch("/api/matriculas/stats/monitores");
       if (response.ok) {
         const data = await response.json();
         setAllMonitores(data || []);
@@ -979,7 +979,7 @@ export default function MonitorPage() {
   const handleStatusChange = useCallback(
     async (id: string, newStatus: "INSCRITA" | "MATRICULADA" | "CANCELADA") => {
       try {
-        const response = await fetch("/api/monitor/status", {
+        const response = await fetch("/api/matriculas/status", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, status: newStatus }),
@@ -1055,7 +1055,7 @@ export default function MonitorPage() {
       formData.append("fileType", fileType);
 
       try {
-        const response = await fetch("/api/monitor/upload", {
+        const response = await fetch("/api/matriculas/upload", {
           method: "POST",
           body: formData,
         });
@@ -1147,7 +1147,7 @@ export default function MonitorPage() {
       try {
         console.log("Tentando alterar role:", { monitorId, newRole });
 
-        const response = await fetch("/api/monitor/edit-role", {
+        const response = await fetch("/api/matriculas/edit-role", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ monitorId, role: newRole }),
@@ -1218,7 +1218,7 @@ export default function MonitorPage() {
       }
 
       try {
-        const response = await fetch("/api/monitor/delete", {
+        const response = await fetch("/api/matriculas/delete", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ monitorId }),

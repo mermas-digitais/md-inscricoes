@@ -30,7 +30,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         // Se há sessão válida e estamos em rotas que têm header próprio
         if (now - timestamp < sessionTimeout) {
           return (
-            pathname === "/monitor" ||
+            pathname === "/matriculas" ||
             pathname === "/painel" ||
             pathname.startsWith("/matriculas") ||
             pathname.startsWith("/ensino")

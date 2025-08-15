@@ -16,8 +16,14 @@ export async function POST(request: NextRequest) {
     );
     if (authError) return authError;
 
-    const { nome_curso, descricao, carga_horaria, publico_alvo } =
-      await request.json();
+    const {
+      nome_curso,
+      descricao,
+      carga_horaria,
+      publico_alvo,
+      status,
+      projeto,
+    } = await request.json();
 
     // Validações
     if (!nome_curso) {
@@ -50,6 +56,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (status && !["ativo", "inativo"].includes(status)) {
+      return NextResponse.json(
+        { error: "Status deve ser 'ativo' ou 'inativo'" },
+        { status: 400 }
+      );
+    }
+
+    if (projeto && !["Meninas STEM", "Mermãs Digitais"].includes(projeto)) {
+      return NextResponse.json(
+        { error: "Projeto deve ser 'Meninas STEM' ou 'Mermãs Digitais'" },
+        { status: 400 }
+      );
+    }
+
     // Inserir curso no banco
     const { data, error } = await supabase
       .from("cursos")
@@ -58,6 +78,8 @@ export async function POST(request: NextRequest) {
         descricao: descricao?.trim() || null,
         carga_horaria: carga_horaria || null,
         publico_alvo: publico_alvo || null,
+        status: status || "ativo",
+        projeto: projeto || "Mermãs Digitais",
       })
       .select()
       .single();

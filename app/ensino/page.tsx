@@ -92,8 +92,8 @@ export default function EnsinoPage() {
 
   const loadStats = async () => {
     try {
-      // Carregar estatísticas dos cursos
-      const cursosResponse = await fetch("/api/cursos", {
+      // Usar a nova API de estatísticas específica do ensino
+      const statsResponse = await fetch("/api/ensino/stats", {
         headers: {
           Authorization: `Bearer ${
             localStorage.getItem("monitorSession")
@@ -103,40 +103,20 @@ export default function EnsinoPage() {
         },
       });
 
-      if (cursosResponse.ok) {
-        const cursosData = await cursosResponse.json();
-        const totalCursos = cursosData.length;
-        const cursosAtivos = cursosData.filter(
-          (curso: any) => curso.ativo
-        ).length;
+      if (statsResponse.ok) {
+        const statsResult = await statsResponse.json();
+        const statsData = statsResult.data;
 
-        // Carregar estatísticas das turmas
-        const turmasResponse = await fetch("/api/turmas", {
-          headers: {
-            Authorization: `Bearer ${
-              localStorage.getItem("monitorSession")
-                ? JSON.parse(localStorage.getItem("monitorSession")!).email
-                : ""
-            }`,
-          },
+        setStats({
+          totalCursos: statsData.total_cursos || 0,
+          totalTurmas: statsData.total_turmas || 0,
+          totalAlunas: statsData.total_alunas || 0,
+          totalAulas: statsData.total_aulas || 0,
+          cursosAtivos: statsData.cursos_ativos || 0,
+          turmasAtivas: statsData.turmas_ativas || 0,
         });
-
-        if (turmasResponse.ok) {
-          const turmasData = await turmasResponse.json();
-          const totalTurmas = turmasData.length;
-          const turmasAtivas = turmasData.filter(
-            (turma: any) => turma.ativa
-          ).length;
-
-          setStats({
-            totalCursos,
-            totalTurmas,
-            totalAlunas: 0, // TODO: Implementar contagem de alunas
-            totalAulas: 0, // TODO: Implementar contagem de aulas
-            cursosAtivos,
-            turmasAtivas,
-          });
-        }
+      } else {
+        console.error("Erro ao carregar estatísticas do ensino");
       }
     } catch (error) {
       console.error("Erro ao carregar estatísticas:", error);

@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${
                   process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-                }/monitor?email=${encodeURIComponent(
+                }/matriculas?email=${encodeURIComponent(
         email
       )}" style="display: inline-block; background: linear-gradient(135deg, #FF4A97, #6C2EB5); color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(255, 74, 151, 0.3); transition: all 0.3s ease;">
                   Acessar Painel →

@@ -32,14 +32,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import {
   BookOpen,
   Plus,
   Edit,
@@ -55,23 +47,25 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { useToast, toast } from "@/hooks/use-toast";
+import { ModuleHeader } from "@/components/module-header";
 
 interface Curso {
   id: string;
-  nome: string;
+  nome_curso: string;
   descricao?: string;
   carga_horaria: number;
-  nivel: "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
-  ativo: boolean;
+  publico_alvo: "Ensino Fundamental 2" | "Ensino Médio" | null;
+  status: "ativo" | "inativo";
+  projeto: "Meninas STEM" | "Mermãs Digitais";
   created_at: string;
-  updated_at: string;
 }
 
 export default function CursosPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const monitorEmail = searchParams.get("email");
+  const { toast } = useToast();
 
   const [monitorName, setMonitorName] = useState("");
   const [monitorRole, setMonitorRole] = useState<"MONITOR" | "ADM">("MONITOR");
@@ -81,19 +75,25 @@ export default function CursosPage() {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [filteredCursos, setFilteredCursos] = useState<Curso[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterLevel, setFilterLevel] = useState<string>("all");
+  const [filterPublicoAlvo, setFilterPublicoAlvo] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterProjeto, setFilterProjeto] = useState<string>("all");
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingCurso, setEditingCurso] = useState<Curso | null>(null);
+  const [deletingCurso, setDeletingCurso] = useState<Curso | null>(null);
 
   const [formData, setFormData] = useState({
-    nome: "",
+    nome_curso: "",
     descricao: "",
     carga_horaria: "",
-    nivel: "INICIANTE" as "INICIANTE" | "INTERMEDIARIO" | "AVANCADO",
-    ativo: true,
+    publico_alvo: "Ensino Fundamental 2" as
+      | "Ensino Fundamental 2"
+      | "Ensino Médio",
+    status: "ativo" as "ativo" | "inativo",
+    projeto: "Mermãs Digitais" as "Meninas STEM" | "Mermãs Digitais",
   });
 
   // Verificar sessão existente
@@ -140,9 +140,10 @@ export default function CursosPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setCursos(data);
-        setFilteredCursos(data);
+        const result = await response.json();
+        const cursosData = result.data || [];
+        setCursos(cursosData);
+        setFilteredCursos(cursosData);
       } else {
         toast({
           title: "Erro",
@@ -161,6 +162,7 @@ export default function CursosPage() {
   };
 
   // Filtrar cursos
+  // Filtrar cursos
   useEffect(() => {
     let filtered = cursos;
 
@@ -168,25 +170,30 @@ export default function CursosPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (curso) =>
-          curso.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          curso.nome_curso.toLowerCase().includes(searchTerm.toLowerCase()) ||
           curso.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filtro por nível
-    if (filterLevel !== "all") {
-      filtered = filtered.filter((curso) => curso.nivel === filterLevel);
+    // Filtro por público alvo
+    if (filterPublicoAlvo !== "all") {
+      filtered = filtered.filter(
+        (curso) => curso.publico_alvo === filterPublicoAlvo
+      );
     }
 
     // Filtro por status
     if (filterStatus !== "all") {
-      filtered = filtered.filter((curso) =>
-        filterStatus === "ativo" ? curso.ativo : !curso.ativo
-      );
+      filtered = filtered.filter((curso) => curso.status === filterStatus);
+    }
+
+    // Filtro por projeto
+    if (filterProjeto !== "all") {
+      filtered = filtered.filter((curso) => curso.projeto === filterProjeto);
     }
 
     setFilteredCursos(filtered);
-  }, [cursos, searchTerm, filterLevel, filterStatus]);
+  }, [cursos, searchTerm, filterPublicoAlvo, filterStatus, filterProjeto]);
 
   const handleNavigateToModule = (module: string) => {
     if (monitorEmail) {
@@ -206,11 +213,12 @@ export default function CursosPage() {
 
   const resetForm = () => {
     setFormData({
-      nome: "",
+      nome_curso: "",
       descricao: "",
       carga_horaria: "",
-      nivel: "INICIANTE",
-      ativo: true,
+      publico_alvo: "Ensino Fundamental 2",
+      status: "ativo",
+      projeto: "Mermãs Digitais",
     });
     setEditingCurso(null);
   };
@@ -236,9 +244,9 @@ export default function CursosPage() {
 
       if (response.ok) {
         toast({
-          title: "Sucesso",
-          description: "Curso criado com sucesso",
-          variant: "default",
+          title: "Curso criado com sucesso!",
+          description: `O curso "${formData.nome_curso}" foi adicionado à plataforma.`,
+          variant: "success",
         });
         setIsCreateModalOpen(false);
         resetForm();
@@ -264,11 +272,12 @@ export default function CursosPage() {
   const handleEditCurso = (curso: Curso) => {
     setEditingCurso(curso);
     setFormData({
-      nome: curso.nome,
+      nome_curso: curso.nome_curso,
       descricao: curso.descricao || "",
       carga_horaria: curso.carga_horaria.toString(),
-      nivel: curso.nivel,
-      ativo: curso.ativo,
+      publico_alvo: curso.publico_alvo || "Ensino Fundamental 2",
+      status: curso.status || "ativo",
+      projeto: curso.projeto || "Mermãs Digitais",
     });
     setIsEditModalOpen(true);
   };
@@ -296,9 +305,9 @@ export default function CursosPage() {
 
       if (response.ok) {
         toast({
-          title: "Sucesso",
-          description: "Curso atualizado com sucesso",
-          variant: "default",
+          title: "Curso atualizado com sucesso!",
+          description: `As alterações no curso "${formData.nome_curso}" foram salvas.`,
+          variant: "success",
         });
         setIsEditModalOpen(false);
         resetForm();
@@ -321,10 +330,13 @@ export default function CursosPage() {
     }
   };
 
-  const handleDeleteCurso = async (curso: Curso) => {
-    if (!confirm(`Tem certeza que deseja excluir o curso "${curso.nome}"?`)) {
-      return;
-    }
+  const handleDeleteCurso = (curso: Curso) => {
+    setDeletingCurso(curso);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteCurso = async () => {
+    if (!deletingCurso) return;
 
     try {
       const sessionData = localStorage.getItem("monitorSession");
@@ -332,7 +344,7 @@ export default function CursosPage() {
 
       const { email } = JSON.parse(sessionData);
 
-      const response = await fetch(`/api/cursos/${curso.id}`, {
+      const response = await fetch(`/api/cursos/${deletingCurso.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${email}`,
@@ -341,53 +353,52 @@ export default function CursosPage() {
 
       if (response.ok) {
         toast({
-          title: "Sucesso",
-          description: "Curso excluído com sucesso",
-          variant: "default",
+          title: "Curso excluído com sucesso!",
+          description: `O curso "${deletingCurso.nome_curso}" foi removido da plataforma.`,
+          variant: "success",
         });
+        setIsDeleteModalOpen(false);
+        setDeletingCurso(null);
         loadCursos();
       } else {
         const error = await response.json();
         toast({
-          title: "Erro",
-          description: error.error || "Erro ao excluir curso",
+          title: "Erro ao excluir",
+          description: error.error || "Não foi possível excluir o curso",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Erro ao excluir curso:", error);
       toast({
-        title: "Erro",
-        description: "Erro ao excluir curso",
+        title: "Erro inesperado",
+        description: "Ocorreu um erro inesperado ao excluir o curso",
         variant: "destructive",
       });
     }
   };
 
-  const getNivelBadge = (nivel: string) => {
-    switch (nivel) {
-      case "INICIANTE":
+  const getPublicoAlvoBadge = (publico_alvo: string | null) => {
+    switch (publico_alvo) {
+      case "Ensino Fundamental 2":
         return (
-          <Badge className="bg-green-100 text-green-800 border-green-300">
-            Iniciante
+          <Badge className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300 font-semibold px-3 py-1.5 shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5">
+            <GraduationCap className="w-3 h-3" />
+            Fundamental 2
           </Badge>
         );
-      case "INTERMEDIARIO":
+      case "Ensino Médio":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
-            Intermediário
-          </Badge>
-        );
-      case "AVANCADO":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-300">
-            Avançado
+          <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300 font-semibold px-3 py-1.5 shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5">
+            <Users className="w-3 h-3" />
+            Ensino Médio
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-gray-100 text-gray-800 border-gray-300">
-            {nivel}
+          <Badge className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 border-gray-300 font-medium px-3 py-1.5 shadow-sm flex items-center gap-1.5">
+            <XCircle className="w-3 h-3" />
+            Não definido
           </Badge>
         );
     }
@@ -421,161 +432,211 @@ export default function CursosPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
-      {/* Header com navegação */}
-      <div className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Logo e Título */}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                className="mr-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <img
-                src="/assets/images/md_logo.svg"
-                alt="Mermãs Digitais"
-                className="h-10 w-auto object-contain"
-              />
-              <div className="border-l border-gray-300 pl-3">
-                <h1 className="text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Gestão de Cursos
-                </h1>
-              </div>
-            </div>
+      {/* ModuleHeader */}
+      <ModuleHeader
+        moduleName="Gestão de Cursos"
+        moduleDescription="Configure e administre os cursos disponíveis"
+        moduleIcon={BookOpen}
+        gradientFrom="from-green-500"
+        gradientTo="to-emerald-600"
+        iconColor="text-green-300"
+      />
 
-            {/* Navegação de Módulos */}
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="text-sm font-medium">
-                    Módulos
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="grid gap-3 p-4 w-[400px]">
-                      <NavigationMenuLink asChild>
-                        <div
-                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => handleNavigateToModule("matriculas")}
-                        >
-                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-r from-blue-100 to-blue-200">
-                            <Users className="h-5 w-5 text-blue-700" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-gray-900">
-                              Matrículas
-                            </h3>
-                            <p className="text-xs text-gray-500">
-                              Gestão de inscrições e monitores
-                            </p>
-                          </div>
-                        </div>
-                      </NavigationMenuLink>
-
-                      <NavigationMenuLink asChild>
-                        <div className="flex items-center space-x-3 p-3 rounded-lg bg-green-50 border border-green-200">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-r from-green-100 to-green-200">
-                            <GraduationCap className="h-5 w-5 text-green-700" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-green-900">
-                              Ensino
-                            </h3>
-                            <p className="text-xs text-green-600">
-                              Cursos, turmas, aulas e frequência
-                            </p>
-                          </div>
-                        </div>
-                      </NavigationMenuLink>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-
-            {/* Info do usuário */}
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-sm font-medium text-gray-900">
-                  {monitorName}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {monitorRole === "ADM" ? "Administrador" : "Monitor"}
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 border-2 border-green-200 flex items-center justify-center">
-                <span className="font-bold text-xs text-green-700">
-                  {monitorName ? monitorName.charAt(0).toUpperCase() : "U"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Back Button */}
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <Button variant="ghost" size="sm" onClick={handleBack} className="mb-2">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar
+        </Button>
       </div>
 
       {/* Conteúdo Principal */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header da Página */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto px-4 py-2">
+        {/* Reduzido padding top */}
+        {/* Actions Header */}
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-green-600" />
-              Gestão de Cursos
+            <h2 className="text-2xl font-bold text-gray-900">
+              Cursos Disponíveis
             </h2>
             <p className="text-gray-600 mt-1">
-              Configure e administre os cursos disponíveis
+              Gerencie e organize os cursos da plataforma
             </p>
           </div>
           {monitorRole === "ADM" && (
             <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-5 h-5 mr-2" />
               Novo Curso
             </Button>
           )}
         </div>
 
         {/* Filtros */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="grid md:grid-cols-4 gap-4">
+        <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-white via-green-50/20 to-emerald-50/20 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
+                <Filter className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  Filtros de Busca
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Encontre exatamente o que procura
+                </p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-5 gap-4">
               <div className="md:col-span-2">
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Busca Geral
+                </Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Buscar cursos..."
+                    placeholder="Buscar por nome ou descrição..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200"
                   />
                 </div>
               </div>
-              <Select value={filterLevel} onValueChange={setFilterLevel}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por nível" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os níveis</SelectItem>
-                  <SelectItem value="INICIANTE">Iniciante</SelectItem>
-                  <SelectItem value="INTERMEDIARIO">Intermediário</SelectItem>
-                  <SelectItem value="AVANCADO">Avançado</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="ativo">Ativos</SelectItem>
-                  <SelectItem value="inativo">Inativos</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Público Alvo
+                </Label>
+                <Select
+                  value={filterPublicoAlvo}
+                  onValueChange={setFilterPublicoAlvo}
+                >
+                  <SelectTrigger className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Filtrar por público" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="all" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                          <Users className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <span className="font-medium">Todos os públicos</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem
+                      value="Ensino Fundamental 2"
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                          <GraduationCap className="w-3 h-3 text-blue-600" />
+                        </div>
+                        <span className="font-medium">
+                          Ensino Fundamental 2
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Ensino Médio" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Users className="w-3 h-3 text-purple-600" />
+                        </div>
+                        <span className="font-medium">Ensino Médio</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Status
+                </Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Filtrar por status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="all" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                          <CheckCircle className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <span className="font-medium">Todos os status</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="ativo" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                          <CheckCircle className="w-3 h-3 text-green-600" />
+                        </div>
+                        <span className="font-medium">Ativo</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="inativo" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center">
+                          <XCircle className="w-3 h-3 text-red-600" />
+                        </div>
+                        <span className="font-medium">Inativo</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Projeto
+                </Label>
+                <Select value={filterProjeto} onValueChange={setFilterProjeto}>
+                  <SelectTrigger className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Filtrar por projeto" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="all" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                          <BookOpen className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <span className="font-medium">Todos os projetos</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem
+                      value="Mermãs Digitais"
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center">
+                          <BookOpen className="w-3 h-3 text-purple-600" />
+                        </div>
+                        <span className="font-medium">Mermãs Digitais</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Meninas STEM" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center">
+                          <BookOpen className="w-3 h-3 text-pink-600" />
+                        </div>
+                        <span className="font-medium">Meninas STEM</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Results counter */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium text-green-600">
+                  {filteredCursos.length}
+                </span>
+                {filteredCursos.length === 1
+                  ? " curso encontrado"
+                  : " cursos encontrados"}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -583,35 +644,29 @@ export default function CursosPage() {
         {/* Lista de Cursos */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCursos.map((curso) => (
-            <Card key={curso.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
+            <Card
+              key={curso.id}
+              className="group relative overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border-0 bg-gradient-to-br from-white via-green-50/30 to-emerald-50/50 backdrop-blur-sm"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <CardHeader className="pb-3 relative z-10">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-gray-900 mb-2">
-                      {curso.nome}
+                    <CardTitle className="text-lg font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent mb-2 group-hover:from-green-600 group-hover:to-emerald-500 transition-all duration-300">
+                      {curso.nome_curso}
                     </CardTitle>
                     <div className="flex items-center gap-2 mb-2">
-                      {getNivelBadge(curso.nivel)}
-                      {curso.ativo ? (
-                        <Badge className="bg-green-100 text-green-800 border-green-300">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Ativo
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-gray-100 text-gray-800 border-gray-300">
-                          <XCircle className="w-3 h-3 mr-1" />
-                          Inativo
-                        </Badge>
-                      )}
+                      {getPublicoAlvoBadge(curso.publico_alvo)}
                     </div>
                   </div>
                   {monitorRole === "ADM" && (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEditCurso(curso)}
-                        className="h-8 w-8 p-0"
+                        className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-700 transition-colors duration-200"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -619,7 +674,7 @@ export default function CursosPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteCurso(curso)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -627,47 +682,64 @@ export default function CursosPage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 {curso.descricao && (
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
                     {curso.descricao}
                   </p>
                 )}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{curso.carga_horaria}h de carga horária</span>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3 text-gray-600 group-hover:text-gray-700 transition-colors duration-200">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-green-600" />
+                    </div>
+                    <span className="font-medium">
+                      {curso.carga_horaria}h de carga horária
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>Criado em {formatDate(curso.created_at)}</span>
+                  <div className="flex items-center gap-3 text-gray-600 group-hover:text-gray-700 transition-colors duration-200">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="font-medium">
+                      Criado em {formatDate(curso.created_at)}
+                    </span>
                   </div>
                 </div>
               </CardContent>
+
+              {/* Decorative gradient line */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-green-400 via-emerald-400 to-green-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
             </Card>
           ))}
         </div>
 
         {filteredCursos.length === 0 && (
-          <Card className="p-8 text-center">
-            <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <Card className="p-12 text-center border-2 border-dashed border-gray-200 bg-gradient-to-br from-gray-50 via-white to-gray-50">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
+              <BookOpen className="w-10 h-10 text-green-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">
               Nenhum curso encontrado
             </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || filterLevel !== "all" || filterStatus !== "all"
-                ? "Tente ajustar os filtros de busca"
-                : "Não há cursos cadastrados ainda"}
+            <p className="text-gray-600 mb-6 max-w-md mx-auto leading-relaxed">
+              {searchTerm ||
+              filterPublicoAlvo !== "all" ||
+              filterStatus !== "all" ||
+              filterProjeto !== "all"
+                ? "Tente ajustar os filtros de busca para encontrar o que procura"
+                : "Não há cursos cadastrados ainda. Que tal criar o primeiro?"}
             </p>
             {monitorRole === "ADM" &&
               !searchTerm &&
-              filterLevel === "all" &&
-              filterStatus === "all" && (
+              filterPublicoAlvo === "all" &&
+              filterStatus === "all" &&
+              filterProjeto === "all" && (
                 <Button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-5 h-5 mr-2" />
                   Criar Primeiro Curso
                 </Button>
               )}
@@ -677,99 +749,234 @@ export default function CursosPage() {
 
       {/* Modal de Criação */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Criar Novo Curso</DialogTitle>
-            <DialogDescription>
-              Preencha as informações do novo curso
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-3 pb-6 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Criar Novo Curso
+                </DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">
+                  Preencha as informações para criar um novo curso na plataforma
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="nome">Nome do Curso *</Label>
+          <div className="space-y-6 py-6">
+            <div className="space-y-2">
+              <Label
+                htmlFor="nome_curso"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Nome do Curso <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
+                id="nome_curso"
+                value={formData.nome_curso}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, nome_curso: e.target.value })
                 }
-                placeholder="Ex: Programação Básica"
+                placeholder="Ex: Programação Básica em Python"
+                className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200"
               />
             </div>
 
-            <div>
-              <Label htmlFor="descricao">Descrição</Label>
+            <div className="space-y-2">
+              <Label
+                htmlFor="descricao"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Descrição do Curso
+              </Label>
               <Textarea
                 id="descricao"
                 value={formData.descricao}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                   setFormData({ ...formData, descricao: e.target.value })
                 }
-                placeholder="Descreva o curso..."
-                rows={3}
+                placeholder="Descreva os objetivos, conteúdo e metodologia do curso..."
+                rows={4}
+                className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200 resize-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="carga_horaria">Carga Horária (horas) *</Label>
-                <Input
-                  id="carga_horaria"
-                  type="number"
-                  value={formData.carga_horaria}
-                  onChange={(e) =>
-                    setFormData({ ...formData, carga_horaria: e.target.value })
-                  }
-                  placeholder="40"
-                  min="1"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="carga_horaria"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Carga Horária <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="carga_horaria"
+                    type="number"
+                    value={formData.carga_horaria}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        carga_horaria: e.target.value,
+                      })
+                    }
+                    placeholder="40"
+                    min="1"
+                    max="1000"
+                    className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200 pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 font-medium">
+                    horas
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="nivel">Nível *</Label>
-                <Select
-                  value={formData.nivel}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, nivel: value })
-                  }
+              <div className="space-y-2">
+                <Label
+                  htmlFor="publico_alvo"
+                  className="text-sm font-semibold text-gray-700"
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  Público Alvo <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.publico_alvo}
+                  onValueChange={(
+                    value: "Ensino Fundamental 2" | "Ensino Médio"
+                  ) => setFormData({ ...formData, publico_alvo: value })}
+                >
+                  <SelectTrigger className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Selecione o público alvo" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="INICIANTE">Iniciante</SelectItem>
-                    <SelectItem value="INTERMEDIARIO">Intermediário</SelectItem>
-                    <SelectItem value="AVANCADO">Avançado</SelectItem>
+                  <SelectContent className="z-50">
+                    <SelectItem
+                      value="Ensino Fundamental 2"
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                          <GraduationCap className="w-3 h-3 text-blue-600" />
+                        </div>
+                        <span className="font-medium">
+                          Ensino Fundamental 2
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Ensino Médio" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Users className="w-3 h-3 text-purple-600" />
+                        </div>
+                        <span className="font-medium">Ensino Médio</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="ativo"
-                checked={formData.ativo}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, ativo: checked })
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label
+                htmlFor="status"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Status <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value: "ativo" | "inativo") =>
+                  setFormData({ ...formData, status: value })
                 }
-              />
-              <Label htmlFor="ativo">Curso ativo</Label>
+              >
+                <SelectTrigger className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent className="z-50">
+                  <SelectItem value="ativo" className="cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                        <CheckCircle className="w-3 h-3 text-green-600" />
+                      </div>
+                      <span className="font-medium">Ativo</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="inativo" className="cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                        <XCircle className="w-3 h-3 text-red-600" />
+                      </div>
+                      <span className="font-medium">Inativo</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="projeto"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Projeto <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.projeto}
+                onValueChange={(value: "Meninas STEM" | "Mermãs Digitais") =>
+                  setFormData({ ...formData, projeto: value })
+                }
+              >
+                <SelectTrigger className="border-gray-200 focus:border-green-400 focus:ring-green-400/20 transition-all duration-200">
+                  <SelectValue placeholder="Selecione o projeto" />
+                </SelectTrigger>
+                <SelectContent className="z-50">
+                  <SelectItem
+                    value="Mermãs Digitais"
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                        <BookOpen className="w-3 h-3 text-purple-600" />
+                      </div>
+                      <span className="font-medium">Mermãs Digitais</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="Meninas STEM" className="cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-pink-100 flex items-center justify-center">
+                        <BookOpen className="w-3 h-3 text-pink-600" />
+                      </div>
+                      <span className="font-medium">Meninas STEM</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="pt-6 border-t border-gray-100">
             <Button
               variant="outline"
               onClick={() => setIsCreateModalOpen(false)}
+              className="border-gray-200 hover:bg-gray-50 transition-colors duration-200"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleCreateCurso}
-              disabled={!formData.nome || !formData.carga_horaria}
-              className="bg-green-600 hover:bg-green-700"
+              disabled={
+                !formData.nome_curso ||
+                !formData.carga_horaria ||
+                !formData.publico_alvo ||
+                !formData.status ||
+                !formData.projeto
+              }
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold px-6 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              <Plus className="w-4 h-4 mr-2" />
               Criar Curso
             </Button>
           </DialogFooter>
@@ -778,99 +985,319 @@ export default function CursosPage() {
 
       {/* Modal de Edição */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Editar Curso</DialogTitle>
-            <DialogDescription>
-              Atualize as informações do curso
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-3 pb-6 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                <Edit className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Editar Curso
+                </DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">
+                  Atualize as informações do curso selecionado
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-nome">Nome do Curso *</Label>
+          <div className="space-y-6 py-6">
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-nome_curso"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Nome do Curso <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="edit-nome"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
+                id="edit-nome_curso"
+                value={formData.nome_curso}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, nome_curso: e.target.value })
                 }
-                placeholder="Ex: Programação Básica"
+                placeholder="Ex: Programação Básica em Python"
+                className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200"
               />
             </div>
 
-            <div>
-              <Label htmlFor="edit-descricao">Descrição</Label>
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-descricao"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Descrição do Curso
+              </Label>
               <Textarea
                 id="edit-descricao"
                 value={formData.descricao}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                   setFormData({ ...formData, descricao: e.target.value })
                 }
-                placeholder="Descreva o curso..."
-                rows={3}
+                placeholder="Descreva os objetivos, conteúdo e metodologia do curso..."
+                rows={4}
+                className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200 resize-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-carga_horaria">
-                  Carga Horária (horas) *
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="edit-carga_horaria"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Carga Horária <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="edit-carga_horaria"
-                  type="number"
-                  value={formData.carga_horaria}
-                  onChange={(e) =>
-                    setFormData({ ...formData, carga_horaria: e.target.value })
-                  }
-                  placeholder="40"
-                  min="1"
-                />
+                <div className="relative">
+                  <Input
+                    id="edit-carga_horaria"
+                    type="number"
+                    value={formData.carga_horaria}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        carga_horaria: e.target.value,
+                      })
+                    }
+                    placeholder="40"
+                    min="1"
+                    max="1000"
+                    className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200 pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 font-medium">
+                    horas
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="edit-nivel">Nível *</Label>
-                <Select
-                  value={formData.nivel}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, nivel: value })
-                  }
+              <div className="space-y-2">
+                <Label
+                  htmlFor="edit-publico_alvo"
+                  className="text-sm font-semibold text-gray-700"
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  Público Alvo <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.publico_alvo}
+                  onValueChange={(
+                    value: "Ensino Fundamental 2" | "Ensino Médio"
+                  ) => setFormData({ ...formData, publico_alvo: value })}
+                >
+                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Selecione o público alvo" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="INICIANTE">Iniciante</SelectItem>
-                    <SelectItem value="INTERMEDIARIO">Intermediário</SelectItem>
-                    <SelectItem value="AVANCADO">Avançado</SelectItem>
+                  <SelectContent className="z-50">
+                    <SelectItem
+                      value="Ensino Fundamental 2"
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                          <GraduationCap className="w-3 h-3 text-blue-600" />
+                        </div>
+                        <span className="font-medium">
+                          Ensino Fundamental 2
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Ensino Médio" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Users className="w-3 h-3 text-purple-600" />
+                        </div>
+                        <span className="font-medium">Ensino Médio</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="edit-ativo"
-                checked={formData.ativo}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, ativo: checked })
-                }
-              />
-              <Label htmlFor="edit-ativo">Curso ativo</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="edit-status"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Status <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: "ativo" | "inativo") =>
+                    setFormData({ ...formData, status: value })
+                  }
+                >
+                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="ativo" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                          <CheckCircle className="w-3 h-3 text-green-600" />
+                        </div>
+                        <span className="font-medium">Ativo</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="inativo" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                          <XCircle className="w-3 h-3 text-red-600" />
+                        </div>
+                        <span className="font-medium">Inativo</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="edit-projeto"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Projeto <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.projeto}
+                  onValueChange={(value: "Meninas STEM" | "Mermãs Digitais") =>
+                    setFormData({ ...formData, projeto: value })
+                  }
+                >
+                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Selecione o projeto" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem
+                      value="Mermãs Digitais"
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                          <BookOpen className="w-3 h-3 text-purple-600" />
+                        </div>
+                        <span className="font-medium">Mermãs Digitais</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Meninas STEM" className="cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-pink-100 flex items-center justify-center">
+                          <BookOpen className="w-3 h-3 text-pink-600" />
+                        </div>
+                        <span className="font-medium">Meninas STEM</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+          <DialogFooter className="pt-6 border-t border-gray-100">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+              className="border-gray-200 hover:bg-gray-50 transition-colors duration-200"
+            >
               Cancelar
             </Button>
             <Button
               onClick={handleUpdateCurso}
-              disabled={!formData.nome || !formData.carga_horaria}
-              className="bg-green-600 hover:bg-green-700"
+              disabled={
+                !formData.nome_curso ||
+                !formData.carga_horaria ||
+                !formData.publico_alvo ||
+                !formData.status ||
+                !formData.projeto
+              }
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              <Edit className="w-4 h-4 mr-2" />
               Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader className="space-y-3 pb-6 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900">
+                  Confirmar Exclusão
+                </DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">
+                  Esta ação não pode ser desfeita
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="py-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-red-900 mb-1">Atenção!</h4>
+                  <p className="text-sm text-red-700">
+                    Ao excluir este curso, todas as informações relacionadas
+                    serão permanentemente removidas.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {deletingCurso && (
+              <div className="space-y-3">
+                <p className="text-gray-700">
+                  Você está prestes a excluir o seguinte curso:
+                </p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">
+                    {deletingCurso.nome_curso}
+                  </h4>
+                  {deletingCurso.descricao && (
+                    <p className="text-sm text-gray-600 mb-2">
+                      {deletingCurso.descricao}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4" />
+                      {deletingCurso.carga_horaria}h
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-4 h-4" />
+                      {deletingCurso.publico_alvo}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-6 border-t border-gray-100">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setDeletingCurso(null);
+              }}
+              className="border-gray-200 hover:bg-gray-50 transition-colors duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmDeleteCurso}
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold px-6 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir Curso
             </Button>
           </DialogFooter>
         </DialogContent>

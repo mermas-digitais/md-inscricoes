@@ -108,7 +108,7 @@ export function ModalNovoMonitor({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/monitor/monitores", {
+      const response = await fetch("/api/matriculas/monitores", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

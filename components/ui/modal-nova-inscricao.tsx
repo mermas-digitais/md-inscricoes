@@ -518,7 +518,7 @@ export function ModalNovaInscricao({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/monitor/create-inscricao", {
+      const response = await fetch("/api/matriculas/create-inscricao", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

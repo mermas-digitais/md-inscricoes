@@ -176,7 +176,7 @@ export default function PainelPage() {
 
     setIsCodeLoading(true);
     try {
-      const response = await fetch("/api/monitor/verify-email", {
+      const response = await fetch("/api/matriculas/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: fullEmail }),
@@ -229,7 +229,7 @@ export default function PainelPage() {
 
     setIsCodeLoading(true);
     try {
-      const response = await fetch("/api/monitor/verify-otp", {
+      const response = await fetch("/api/matriculas/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code: codeString }),
