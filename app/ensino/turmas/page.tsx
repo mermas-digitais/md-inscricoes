@@ -30,14 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
+import { ModuleHeader } from "@/components/module-header";
 import {
   Users,
   Plus,
@@ -53,29 +46,33 @@ import {
   User,
   Clock,
   ChevronRight,
+  Shuffle,
+  Filter,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Curso {
   id: string;
-  nome: string;
+  nome_curso: string;
   descricao?: string;
   carga_horaria: number;
-  nivel: "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
-  ativo: boolean;
+  publico_alvo?: string;
+  status: "ativo" | "inativo";
+  projeto: "Meninas STEM" | "Mermãs Digitais";
+  created_at: string;
 }
 
 interface Turma {
   id: string;
-  nome: string;
+  codigo_turma: string;
   descricao?: string;
   curso_id: string;
-  ano_letivo: number;
+  ano_letivo: string;
   semestre: number;
-  ativa: boolean;
+  status: "Planejamento" | "Ativa" | "Concluída";
   created_at: string;
   updated_at: string;
-  curso?: Curso;
+  cursos?: Curso;
 }
 
 export default function TurmasPage() {
@@ -101,13 +98,53 @@ export default function TurmasPage() {
   const [editingTurma, setEditingTurma] = useState<Turma | null>(null);
 
   const [formData, setFormData] = useState({
-    nome: "",
+    codigo_turma: "",
     descricao: "",
     curso_id: "",
     ano_letivo: new Date().getFullYear().toString(),
     semestre: "1",
-    ativa: true,
+    status: "Planejamento" as "Planejamento" | "Ativa" | "Concluída",
   });
+
+  // Gerar lista de anos letivos de 2020 até o ano atual
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 2019 }, (_, i) => 2020 + i);
+
+  // Função para gerar código automático da turma
+  const generateTurmaCode = () => {
+    if (!formData.curso_id || !formData.ano_letivo || !formData.semestre) {
+      toast({
+        title: "Atenção",
+        description: "Selecione o curso, ano letivo e semestre primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const curso = cursos.find((c) => c.id === formData.curso_id);
+    if (!curso) return;
+
+    // Prefixo baseado no projeto
+    const prefixo = curso.projeto === "Meninas STEM" ? "MS" : "MD";
+
+    // Gerar sufixo aleatório de 3 dígitos
+    const sufixo = Math.floor(100 + Math.random() * 900);
+
+    // Formato: PREFIXO + SUFIXO + ANO + SEMESTRE
+    // Exemplo: MD543-2024.1 ou MS789-2024.2
+    const codigo = `${prefixo}${sufixo}-${formData.ano_letivo}.${formData.semestre}`;
+
+    setFormData((prev) => ({
+      ...prev,
+      codigo_turma: codigo,
+    }));
+
+    toast({
+      title: "Código gerado!",
+      description: `Código da turma: ${codigo}`,
+      variant: "default",
+    });
+  };
 
   // Verificar sessão existente
   useEffect(() => {
@@ -191,10 +228,15 @@ export default function TurmasPage() {
       if (response.ok) {
         const result = await response.json();
         const data = result.data || [];
-        setCursos(data.filter((curso: Curso) => curso.ativo));
+        setCursos(data.filter((curso: Curso) => curso.status === "ativo"));
       }
     } catch (error) {
       console.error("Erro ao carregar cursos:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar cursos",
+        variant: "destructive",
+      });
     }
   };
 
@@ -206,9 +248,11 @@ export default function TurmasPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (turma) =>
-          turma.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          turma.codigo_turma.toLowerCase().includes(searchTerm.toLowerCase()) ||
           turma.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          turma.curso?.nome.toLowerCase().includes(searchTerm.toLowerCase())
+          turma.cursos?.nome_curso
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
       );
     }
 
@@ -226,9 +270,7 @@ export default function TurmasPage() {
 
     // Filtro por status
     if (filterStatus !== "all") {
-      filtered = filtered.filter((turma) =>
-        filterStatus === "ativa" ? turma.ativa : !turma.ativa
-      );
+      filtered = filtered.filter((turma) => turma.status === filterStatus);
     }
 
     setFilteredTurmas(filtered);
@@ -262,12 +304,12 @@ export default function TurmasPage() {
 
   const resetForm = () => {
     setFormData({
-      nome: "",
+      codigo_turma: "",
       descricao: "",
       curso_id: "",
       ano_letivo: new Date().getFullYear().toString(),
       semestre: "1",
-      ativa: true,
+      status: "Planejamento" as const,
     });
     setEditingTurma(null);
   };
@@ -322,12 +364,12 @@ export default function TurmasPage() {
   const handleEditTurma = (turma: Turma) => {
     setEditingTurma(turma);
     setFormData({
-      nome: turma.nome,
+      codigo_turma: turma.codigo_turma || "",
       descricao: turma.descricao || "",
       curso_id: turma.curso_id,
       ano_letivo: turma.ano_letivo.toString(),
       semestre: turma.semestre.toString(),
-      ativa: turma.ativa,
+      status: turma.status,
     });
     setIsEditModalOpen(true);
   };
@@ -382,7 +424,11 @@ export default function TurmasPage() {
   };
 
   const handleDeleteTurma = async (turma: Turma) => {
-    if (!confirm(`Tem certeza que deseja excluir a turma "${turma.nome}"?`)) {
+    if (
+      !confirm(
+        `Tem certeza que deseja excluir a turma "${turma.codigo_turma}"?`
+      )
+    ) {
       return;
     }
 
@@ -428,15 +474,11 @@ export default function TurmasPage() {
     return new Date(dateString).toLocaleDateString("pt-BR");
   };
 
-  // Gerar anos para o filtro
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando turmas...</p>
         </div>
       </div>
@@ -445,9 +487,9 @@ export default function TurmasPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Verificando autenticação...</p>
         </div>
       </div>
@@ -455,208 +497,162 @@ export default function TurmasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
-      {/* Header com navegação */}
-      <div className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Logo e Título */}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                className="mr-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <img
-                src="/assets/images/md_logo.svg"
-                alt="Mermãs Digitais"
-                className="h-10 w-auto object-contain"
-              />
-              <div className="border-l border-gray-300 pl-3">
-                <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                  Gestão de Turmas
-                </h1>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <ModuleHeader
+        moduleName="Turmas"
+        moduleDescription="Gerencie as turmas dos cursos do projeto."
+        moduleIcon={GraduationCap}
+        gradientFrom="from-blue-500"
+        gradientTo="to-purple-600"
+        iconColor="text-blue-300"
+      />
 
-            {/* Navegação de Módulos */}
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="text-sm font-medium">
-                    Módulos
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="grid gap-3 p-4 w-[400px]">
-                      <NavigationMenuLink asChild>
-                        <div
-                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => handleNavigateToModule("matriculas")}
-                        >
-                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-r from-blue-100 to-blue-200">
-                            <Users className="h-5 w-5 text-blue-700" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-gray-900">
-                              Matrículas
-                            </h3>
-                            <p className="text-xs text-gray-500">
-                              Gestão de inscrições e monitores
-                            </p>
-                          </div>
-                        </div>
-                      </NavigationMenuLink>
-
-                      <NavigationMenuLink asChild>
-                        <div className="flex items-center space-x-3 p-3 rounded-lg bg-green-50 border border-green-200">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-r from-green-100 to-green-200">
-                            <GraduationCap className="h-5 w-5 text-green-700" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-green-900">
-                              Ensino
-                            </h3>
-                            <p className="text-xs text-green-600">
-                              Cursos, turmas, aulas e frequência
-                            </p>
-                          </div>
-                        </div>
-                      </NavigationMenuLink>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-
-            {/* Info do usuário */}
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-sm font-medium text-gray-900">
-                  {monitorName}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {monitorRole === "ADM" ? "Administrador" : "Monitor"}
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 border-2 border-blue-200 flex items-center justify-center">
-                <span className="font-bold text-xs text-blue-700">
-                  {monitorName ? monitorName.charAt(0).toUpperCase() : "U"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Back Button */}
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <Button variant="ghost" size="sm" onClick={handleBack} className="mb-2">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar
+        </Button>
       </div>
 
       {/* Conteúdo Principal */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header da Página */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto px-4 py-2">
+        {/* Actions Header */}
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-6 h-6 text-blue-600" />
-              Gestão de Turmas
+            <h2 className="text-2xl font-bold text-gray-900">
+              Turmas Disponíveis
             </h2>
             <p className="text-gray-600 mt-1">
-              Organize e gerencie as turmas dos cursos
+              Gerencie e organize as turmas da plataforma
             </p>
           </div>
           {monitorRole === "ADM" && (
             <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-5 h-5 mr-2" />
               Nova Turma
             </Button>
           )}
         </div>
-
         {/* Filtros */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
+        <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-white via-blue-50/20 to-purple-50/20 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                <Filter className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  Filtros de Busca
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Encontre exatamente o que procura
+                </p>
+              </div>
+            </div>
+
             <div className="grid md:grid-cols-5 gap-4">
               <div className="md:col-span-2">
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Busca Geral
+                </Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Buscar turmas..."
+                    placeholder="Buscar por código, descrição ou curso..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200"
                   />
                 </div>
               </div>
-              <Select value={filterCurso} onValueChange={setFilterCurso}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por curso" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os cursos</SelectItem>
-                  {cursos.map((curso) => (
-                    <SelectItem key={curso.id} value={curso.id}>
-                      {curso.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterAno} onValueChange={setFilterAno}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por ano" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os anos</SelectItem>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="ativa">Ativas</SelectItem>
-                  <SelectItem value="inativa">Inativas</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Curso
+                </Label>
+                <Select value={filterCurso} onValueChange={setFilterCurso}>
+                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Todos os cursos" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="all">Todos os cursos</SelectItem>
+                    {cursos.map((curso) => (
+                      <SelectItem key={curso.id} value={curso.id}>
+                        {curso.nome_curso}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Ano Letivo
+                </Label>
+                <Select value={filterAno} onValueChange={setFilterAno}>
+                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Todos os anos" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="all">Todos os anos</SelectItem>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Status
+                </Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                    <SelectValue placeholder="Todos os status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50">
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="Planejamento">Planejamento</SelectItem>
+                    <SelectItem value="Ativa">Ativa</SelectItem>
+                    <SelectItem value="Concluída">Concluída</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
-        </Card>
-
-        {/* Lista de Turmas */}
+        </Card>{" "}
+        {/* Lista de turmas */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTurmas.map((turma) => (
             <Card
               key={turma.id}
-              className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+              className="hover:shadow-lg transition-all duration-300 cursor-pointer group border-l-4 border-l-blue-400"
               onClick={() => handleTurmaClick(turma.id)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-lg text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                      {turma.nome}
+                      {turma.codigo_turma}
                     </CardTitle>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className="bg-purple-100 text-purple-800 border-purple-300">
-                        {turma.curso?.nome || "Curso não encontrado"}
+                        {turma.cursos?.nome_curso || "Curso não encontrado"}
                       </Badge>
-                      {turma.ativa ? (
+                      {turma.status === "Ativa" ? (
                         <Badge className="bg-green-100 text-green-800 border-green-300">
-                          <CheckCircle className="w-3 h-3 mr-1" />
                           Ativa
+                        </Badge>
+                      ) : turma.status === "Planejamento" ? (
+                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                          Planejamento
                         </Badge>
                       ) : (
                         <Badge className="bg-gray-100 text-gray-800 border-gray-300">
-                          <XCircle className="w-3 h-3 mr-1" />
-                          Inativa
+                          Concluída
                         </Badge>
                       )}
                     </div>
@@ -714,76 +710,72 @@ export default function TurmasPage() {
             </Card>
           ))}
         </div>
-
         {filteredTurmas.length === 0 && (
-          <Card className="p-8 text-center">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Nenhuma turma encontrada
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm ||
-              filterCurso !== "all" ||
-              filterAno !== "all" ||
-              filterStatus !== "all"
-                ? "Tente ajustar os filtros de busca"
-                : "Não há turmas cadastradas ainda"}
-            </p>
-            {monitorRole === "ADM" &&
-              !searchTerm &&
-              filterCurso === "all" &&
-              filterAno === "all" &&
-              filterStatus === "all" && (
+          <div className="text-center py-12">
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 max-w-md mx-auto">
+              <GraduationCap className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhuma turma encontrada
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {searchTerm ||
+                filterCurso !== "all" ||
+                filterAno !== "all" ||
+                filterStatus !== "all"
+                  ? "Tente ajustar os filtros de busca."
+                  : "Crie a primeira turma para começar."}
+              </p>
+              {monitorRole === "ADM" && (
                 <Button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-5 h-5 mr-2" />
                   Criar Primeira Turma
                 </Button>
               )}
-          </Card>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Modal de Criação */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Criar Nova Turma</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-blue-600" />
+              Criar Nova Turma
+            </DialogTitle>
             <DialogDescription>
-              Preencha as informações da nova turma
+              Preencha as informações da nova turma. O código será gerado
+              automaticamente.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <Label htmlFor="nome">Nome da Turma *</Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
-                placeholder="Ex: Turma A - Manhã"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="curso_id">Curso *</Label>
+              <Label htmlFor="curso_id" className="text-sm font-medium">
+                Curso *
+              </Label>
               <Select
                 value={formData.curso_id}
                 onValueChange={(value) =>
                   setFormData({ ...formData, curso_id: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Selecione um curso" />
                 </SelectTrigger>
                 <SelectContent>
                   {cursos.map((curso) => (
                     <SelectItem key={curso.id} value={curso.id}>
-                      {curso.nome}
+                      <div className="flex flex-col">
+                        <span>{curso.nome_curso}</span>
+                        <span className="text-xs text-gray-500">
+                          {curso.projeto}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -791,28 +783,62 @@ export default function TurmasPage() {
             </div>
 
             <div>
-              <Label htmlFor="descricao">Descrição</Label>
+              <Label htmlFor="codigo_turma" className="text-sm font-medium">
+                Código da Turma
+              </Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="codigo_turma"
+                  value={formData.codigo_turma}
+                  onChange={(e) =>
+                    setFormData({ ...formData, codigo_turma: e.target.value })
+                  }
+                  placeholder="Ex: MD123-2024.1"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={generateTurmaCode}
+                  className="shrink-0"
+                >
+                  <Shuffle className="w-4 h-4 mr-1" />
+                  Gerar
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Selecione o curso primeiro para gerar um código automático
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="descricao" className="text-sm font-medium">
+                Descrição
+              </Label>
               <Textarea
                 id="descricao"
                 value={formData.descricao}
                 onChange={(e) =>
                   setFormData({ ...formData, descricao: e.target.value })
                 }
-                placeholder="Descreva a turma..."
+                placeholder="Descreva a turma (opcional)..."
                 rows={3}
+                className="mt-1"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="ano_letivo">Ano Letivo *</Label>
+                <Label htmlFor="ano_letivo" className="text-sm font-medium">
+                  Ano Letivo *
+                </Label>
                 <Select
                   value={formData.ano_letivo}
                   onValueChange={(value) =>
                     setFormData({ ...formData, ano_letivo: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -826,14 +852,16 @@ export default function TurmasPage() {
               </div>
 
               <div>
-                <Label htmlFor="semestre">Semestre *</Label>
+                <Label htmlFor="semestre" className="text-sm font-medium">
+                  Semestre *
+                </Label>
                 <Select
                   value={formData.semestre}
                   onValueChange={(value) =>
                     setFormData({ ...formData, semestre: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -846,13 +874,18 @@ export default function TurmasPage() {
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="ativa"
-                checked={formData.ativa}
+                id="status"
+                checked={formData.status === "Ativa"}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, ativa: checked })
+                  setFormData({
+                    ...formData,
+                    status: checked ? "Ativa" : "Planejamento",
+                  })
                 }
               />
-              <Label htmlFor="ativa">Turma ativa</Label>
+              <Label htmlFor="status" className="text-sm font-medium">
+                Turma ativa
+              </Label>
             </div>
           </div>
 
@@ -865,9 +898,10 @@ export default function TurmasPage() {
             </Button>
             <Button
               onClick={handleCreateTurma}
-              disabled={!formData.nome || !formData.curso_id}
+              disabled={!formData.codigo_turma || !formData.curso_id}
               className="bg-blue-600 hover:bg-blue-700"
             >
+              <Plus className="w-4 h-4 mr-2" />
               Criar Turma
             </Button>
           </DialogFooter>
@@ -876,42 +910,58 @@ export default function TurmasPage() {
 
       {/* Modal de Edição */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Editar Turma</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-blue-600" />
+              Editar Turma
+            </DialogTitle>
             <DialogDescription>
               Atualize as informações da turma
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <Label htmlFor="edit-nome">Nome da Turma *</Label>
+              <Label
+                htmlFor="edit-codigo_turma"
+                className="text-sm font-medium"
+              >
+                Código da Turma *
+              </Label>
               <Input
-                id="edit-nome"
-                value={formData.nome}
+                id="edit-codigo_turma"
+                value={formData.codigo_turma}
                 onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
+                  setFormData({ ...formData, codigo_turma: e.target.value })
                 }
-                placeholder="Ex: Turma A - Manhã"
+                placeholder="Ex: MD123-2024.1"
+                className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="edit-curso_id">Curso *</Label>
+              <Label htmlFor="edit-curso_id" className="text-sm font-medium">
+                Curso *
+              </Label>
               <Select
                 value={formData.curso_id}
                 onValueChange={(value) =>
                   setFormData({ ...formData, curso_id: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Selecione um curso" />
                 </SelectTrigger>
                 <SelectContent>
                   {cursos.map((curso) => (
                     <SelectItem key={curso.id} value={curso.id}>
-                      {curso.nome}
+                      <div className="flex flex-col">
+                        <span>{curso.nome_curso}</span>
+                        <span className="text-xs text-gray-500">
+                          {curso.projeto}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -919,28 +969,36 @@ export default function TurmasPage() {
             </div>
 
             <div>
-              <Label htmlFor="edit-descricao">Descrição</Label>
+              <Label htmlFor="edit-descricao" className="text-sm font-medium">
+                Descrição
+              </Label>
               <Textarea
                 id="edit-descricao"
                 value={formData.descricao}
                 onChange={(e) =>
                   setFormData({ ...formData, descricao: e.target.value })
                 }
-                placeholder="Descreva a turma..."
+                placeholder="Descreva a turma (opcional)..."
                 rows={3}
+                className="mt-1"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-ano_letivo">Ano Letivo *</Label>
+                <Label
+                  htmlFor="edit-ano_letivo"
+                  className="text-sm font-medium"
+                >
+                  Ano Letivo *
+                </Label>
                 <Select
                   value={formData.ano_letivo}
                   onValueChange={(value) =>
                     setFormData({ ...formData, ano_letivo: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -954,14 +1012,16 @@ export default function TurmasPage() {
               </div>
 
               <div>
-                <Label htmlFor="edit-semestre">Semestre *</Label>
+                <Label htmlFor="edit-semestre" className="text-sm font-medium">
+                  Semestre *
+                </Label>
                 <Select
                   value={formData.semestre}
                   onValueChange={(value) =>
                     setFormData({ ...formData, semestre: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -974,13 +1034,18 @@ export default function TurmasPage() {
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="edit-ativa"
-                checked={formData.ativa}
+                id="edit-status"
+                checked={formData.status === "Ativa"}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, ativa: checked })
+                  setFormData({
+                    ...formData,
+                    status: checked ? "Ativa" : "Planejamento",
+                  })
                 }
               />
-              <Label htmlFor="edit-ativa">Turma ativa</Label>
+              <Label htmlFor="edit-status" className="text-sm font-medium">
+                Turma ativa
+              </Label>
             </div>
           </div>
 
@@ -990,10 +1055,11 @@ export default function TurmasPage() {
             </Button>
             <Button
               onClick={handleUpdateTurma}
-              disabled={!formData.nome || !formData.curso_id}
+              disabled={!formData.codigo_turma || !formData.curso_id}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Salvar Alterações
+              <Edit className="w-4 h-4 mr-2" />
+              Atualizar Turma
             </Button>
           </DialogFooter>
         </DialogContent>

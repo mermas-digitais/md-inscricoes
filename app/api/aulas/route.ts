@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     // Verificar autenticação (MONITOR ou ADM pode criar aulas)
-    const { response: authError } = await requireAuth(request, 'MONITOR');
+    const { response: authError } = await requireAuth(request, "MONITOR");
     if (authError) return authError;
 
     const { turma_id, data_aula, conteudo_ministrado } = await request.json();
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Verificar se a turma existe
     const { data: turma, error: turmaError } = await supabase
       .from("turmas")
-      .select("id, nome_turma")
+      .select("id, codigo_turma")
       .eq("id", turma_id)
       .single();
 

@@ -141,3 +141,183 @@ export async function GET(
     );
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Verificar autenticação (apenas ADM pode editar turmas)
+    const { response: authError } = await requireAuth(request, "ADM");
+    if (authError) return authError;
+
+    const { id } = params;
+    const { codigo_turma, descricao, curso_id, ano_letivo, semestre, status } =
+      await request.json();
+
+    // Validar UUID
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json(
+        { error: "ID da turma inválido" },
+        { status: 400 }
+      );
+    }
+
+    // Validações obrigatórias
+    if (!codigo_turma) {
+      return NextResponse.json(
+        { error: "Código da turma é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    if (!curso_id) {
+      return NextResponse.json(
+        { error: "ID do curso é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se a turma existe
+    const { data: existingTurma, error: checkError } = await supabase
+      .from("turmas")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (checkError || !existingTurma) {
+      return NextResponse.json(
+        { error: "Turma não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    // Atualizar turma
+    const { data, error } = await supabase
+      .from("turmas")
+      .update({
+        codigo_turma: codigo_turma.trim(),
+        descricao: descricao?.trim(),
+        curso_id,
+        ano_letivo,
+        semestre: semestre || 1,
+        status: status || "Planejamento",
+      })
+      .eq("id", id)
+      .select(
+        `
+        *,
+        cursos (
+          id,
+          nome_curso,
+          publico_alvo,
+          carga_horaria
+        )
+      `
+      )
+      .single();
+
+    if (error) {
+      console.error("Database error:", error);
+      return NextResponse.json(
+        { error: "Erro ao atualizar turma" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: data,
+      message: "Turma atualizada com sucesso",
+    });
+  } catch (error) {
+    console.error("Error updating turma:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Verificar autenticação (apenas ADM pode deletar turmas)
+    const { response: authError } = await requireAuth(request, "ADM");
+    if (authError) return authError;
+
+    const { id } = params;
+
+    // Validar UUID
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json(
+        { error: "ID da turma inválido" },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se a turma existe
+    const { data: existingTurma, error: checkError } = await supabase
+      .from("turmas")
+      .select("id, codigo_turma")
+      .eq("id", id)
+      .single();
+
+    if (checkError || !existingTurma) {
+      return NextResponse.json(
+        { error: "Turma não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    // Verificar se há vinculações que impedem a exclusão
+    const { data: vinculos, error: vinculosError } = await supabase
+      .from("turmas_alunas")
+      .select("id")
+      .eq("turma_id", id)
+      .limit(1);
+
+    if (vinculosError) {
+      console.error("Error checking vinculos:", vinculosError);
+      return NextResponse.json(
+        { error: "Erro ao verificar vinculações" },
+        { status: 500 }
+      );
+    }
+
+    if (vinculos && vinculos.length > 0) {
+      return NextResponse.json(
+        { error: "Não é possível excluir turma com alunas vinculadas" },
+        { status: 400 }
+      );
+    }
+
+    // Deletar turma
+    const { error } = await supabase.from("turmas").delete().eq("id", id);
+
+    if (error) {
+      console.error("Database error:", error);
+      return NextResponse.json(
+        { error: "Erro ao excluir turma" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Turma ${existingTurma.codigo_turma} excluída com sucesso`,
+    });
+  } catch (error) {
+    console.error("Error deleting turma:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
+  }
+}

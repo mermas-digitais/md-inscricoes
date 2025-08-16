@@ -129,7 +129,7 @@ export async function PUT(request: NextRequest) {
               data_aula,
               turmas (
                 id,
-                nome_turma
+                codigo_turma
               )
             ),
             inscricoes (

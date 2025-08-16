@@ -65,7 +65,7 @@ export async function DELETE(
       .select(
         `
         *,
-        turmas (nome_turma),
+        turmas (codigo_turma),
         monitores (nome)
       `
       )
@@ -100,7 +100,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Monitor ${vinculo.monitores.nome} desvinculado com sucesso da turma ${vinculo.turmas.nome_turma}`,
+      message: `Monitor ${vinculo.monitores.nome} desvinculado com sucesso da turma ${vinculo.turmas.codigo_turma}`,
     });
   } catch (error) {
     console.error("Error desvinculando monitor:", error);

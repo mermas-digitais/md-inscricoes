@@ -70,7 +70,7 @@ export async function DELETE(
       .select(
         `
         *,
-        turmas (nome_turma),
+        turmas (codigo_turma),
         inscricoes (nome)
       `
       )
@@ -105,7 +105,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Aluna ${vinculo.inscricoes.nome} desvinculada com sucesso da turma ${vinculo.turmas.nome_turma}`,
+      message: `Aluna ${vinculo.inscricoes.nome} desvinculada com sucesso da turma ${vinculo.turmas.codigo_turma}`,
     });
   } catch (error) {
     console.error("Error desvinculando aluna:", error);

@@ -69,62 +69,94 @@ export async function GET(request: NextRequest) {
     const stats = {
       // Estatísticas gerais
       total_cursos: cursos.length,
-      cursos_ativos: cursos.filter(c => c.status === "ativo").length,
-      cursos_inativos: cursos.filter(c => c.status === "inativo").length,
-      
+      cursos_ativos: cursos.filter((c) => c.status === "ativo").length,
+      cursos_inativos: cursos.filter((c) => c.status === "inativo").length,
+
       // Por projeto
-      cursos_meninas_stem: cursos.filter(c => c.projeto === "Meninas STEM").length,
-      cursos_mermas_digitais: cursos.filter(c => c.projeto === "Mermãs Digitais").length,
-      
+      cursos_meninas_stem: cursos.filter((c) => c.projeto === "Meninas STEM")
+        .length,
+      cursos_mermas_digitais: cursos.filter(
+        (c) => c.projeto === "Mermãs Digitais"
+      ).length,
+
       // Turmas
       total_turmas: turmas.length,
-      turmas_ativas: turmas.filter(t => t.status === "Ativa").length,
-      turmas_planejamento: turmas.filter(t => t.status === "Planejamento").length,
-      turmas_concluidas: turmas.filter(t => t.status === "Concluída").length,
-      
+      turmas_ativas: turmas.filter((t) => t.status === "Ativa").length,
+      turmas_planejamento: turmas.filter((t) => t.status === "Planejamento")
+        .length,
+      turmas_concluidas: turmas.filter((t) => t.status === "Concluída").length,
+
       // Alunas
       total_alunas: totalAlunas.length,
-      alunas_cursos_ativos: totalAlunas.filter(a => a.turmas?.cursos?.status === "ativo").length,
-      alunas_meninas_stem: totalAlunas.filter(a => a.turmas?.cursos?.projeto === "Meninas STEM").length,
-      alunas_mermas_digitais: totalAlunas.filter(a => a.turmas?.cursos?.projeto === "Mermãs Digitais").length,
-      
+      alunas_cursos_ativos: totalAlunas.filter(
+        (a) => a.turmas?.cursos?.status === "ativo"
+      ).length,
+      alunas_meninas_stem: totalAlunas.filter(
+        (a) => a.turmas?.cursos?.projeto === "Meninas STEM"
+      ).length,
+      alunas_mermas_digitais: totalAlunas.filter(
+        (a) => a.turmas?.cursos?.projeto === "Mermãs Digitais"
+      ).length,
+
       // Aulas
       total_aulas: aulas.length,
-      aulas_cursos_ativos: aulas.filter(a => a.turmas?.cursos?.status === "ativo").length,
-      
+      aulas_cursos_ativos: aulas.filter(
+        (a) => a.turmas?.cursos?.status === "ativo"
+      ).length,
+
       // Detalhes por projeto
       projetos: {
         "Meninas STEM": {
-          cursos: cursos.filter(c => c.projeto === "Meninas STEM"),
-          cursos_ativos: cursos.filter(c => c.projeto === "Meninas STEM" && c.status === "ativo").length,
-          turmas: turmas.filter(t => t.cursos?.projeto === "Meninas STEM").length,
-          alunas: totalAlunas.filter(a => a.turmas?.cursos?.projeto === "Meninas STEM").length,
-          aulas: aulas.filter(a => a.turmas?.cursos?.projeto === "Meninas STEM").length,
+          cursos: cursos.filter((c) => c.projeto === "Meninas STEM"),
+          cursos_ativos: cursos.filter(
+            (c) => c.projeto === "Meninas STEM" && c.status === "ativo"
+          ).length,
+          turmas: turmas.filter((t) => t.cursos?.projeto === "Meninas STEM")
+            .length,
+          alunas: totalAlunas.filter(
+            (a) => a.turmas?.cursos?.projeto === "Meninas STEM"
+          ).length,
+          aulas: aulas.filter(
+            (a) => a.turmas?.cursos?.projeto === "Meninas STEM"
+          ).length,
         },
         "Mermãs Digitais": {
-          cursos: cursos.filter(c => c.projeto === "Mermãs Digitais"),
-          cursos_ativos: cursos.filter(c => c.projeto === "Mermãs Digitais" && c.status === "ativo").length,
-          turmas: turmas.filter(t => t.cursos?.projeto === "Mermãs Digitais").length,
-          alunas: totalAlunas.filter(a => a.turmas?.cursos?.projeto === "Mermãs Digitais").length,
-          aulas: aulas.filter(a => a.turmas?.cursos?.projeto === "Mermãs Digitais").length,
-        }
+          cursos: cursos.filter((c) => c.projeto === "Mermãs Digitais"),
+          cursos_ativos: cursos.filter(
+            (c) => c.projeto === "Mermãs Digitais" && c.status === "ativo"
+          ).length,
+          turmas: turmas.filter((t) => t.cursos?.projeto === "Mermãs Digitais")
+            .length,
+          alunas: totalAlunas.filter(
+            (a) => a.turmas?.cursos?.projeto === "Mermãs Digitais"
+          ).length,
+          aulas: aulas.filter(
+            (a) => a.turmas?.cursos?.projeto === "Mermãs Digitais"
+          ).length,
+        },
       },
-      
+
       // Detalhes por status
       status: {
         ativo: {
-          cursos: cursos.filter(c => c.status === "ativo"),
-          turmas: turmas.filter(t => t.cursos?.status === "ativo").length,
-          alunas: totalAlunas.filter(a => a.turmas?.cursos?.status === "ativo").length,
-          aulas: aulas.filter(a => a.turmas?.cursos?.status === "ativo").length,
+          cursos: cursos.filter((c) => c.status === "ativo"),
+          turmas: turmas.filter((t) => t.cursos?.status === "ativo").length,
+          alunas: totalAlunas.filter(
+            (a) => a.turmas?.cursos?.status === "ativo"
+          ).length,
+          aulas: aulas.filter((a) => a.turmas?.cursos?.status === "ativo")
+            .length,
         },
         inativo: {
-          cursos: cursos.filter(c => c.status === "inativo"),
-          turmas: turmas.filter(t => t.cursos?.status === "inativo").length,
-          alunas: totalAlunas.filter(a => a.turmas?.cursos?.status === "inativo").length,
-          aulas: aulas.filter(a => a.turmas?.cursos?.status === "inativo").length,
-        }
-      }
+          cursos: cursos.filter((c) => c.status === "inativo"),
+          turmas: turmas.filter((t) => t.cursos?.status === "inativo").length,
+          alunas: totalAlunas.filter(
+            (a) => a.turmas?.cursos?.status === "inativo"
+          ).length,
+          aulas: aulas.filter((a) => a.turmas?.cursos?.status === "inativo")
+            .length,
+        },
+      },
     };
 
     return NextResponse.json({
@@ -132,7 +164,6 @@ export async function GET(request: NextRequest) {
       data: stats,
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Error fetching ensino stats:", error);
     return NextResponse.json(

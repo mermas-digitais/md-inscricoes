@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         id,
-        nome_turma,
+        codigo_turma,
         cursos (
           id,
           nome_curso
@@ -229,7 +229,13 @@ export async function GET(request: NextRequest) {
             : 0;
 
         // Converter Map de frequência para objeto organizado por data
-        const frequenciaPorData: { [data_aula: string]: { aula_id: string; presente: boolean; observacoes: string | null } } = {};
+        const frequenciaPorData: {
+          [data_aula: string]: {
+            aula_id: string;
+            presente: boolean;
+            observacoes: string | null;
+          };
+        } = {};
         aulas.forEach((aula) => {
           const freq = alunaData.frequencia.get(aula.id);
           frequenciaPorData[aula.data_aula] = {

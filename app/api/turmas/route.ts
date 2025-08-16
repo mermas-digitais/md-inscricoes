@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     const { response: authError } = await requireAuth(request, "MONITOR");
     if (authError) return authError;
 
-    const { curso_id, nome_turma, ano_letivo, status } = await request.json();
+    const { curso_id, codigo_turma, descricao, ano_letivo, semestre, status } =
+      await request.json();
 
     // Validações obrigatórias
     if (!curso_id) {
@@ -23,9 +24,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!nome_turma) {
+    if (!codigo_turma) {
       return NextResponse.json(
-        { error: "Nome da turma é obrigatório" },
+        { error: "Código da turma é obrigatório" },
         { status: 400 }
       );
     }
@@ -91,8 +92,10 @@ export async function POST(request: NextRequest) {
       .from("turmas")
       .insert({
         curso_id,
-        nome_turma: nome_turma.trim(),
+        codigo_turma: codigo_turma.trim(),
+        descricao: descricao?.trim(),
         ano_letivo,
+        semestre: semestre || 1,
         status: status || "Planejamento",
       })
       .select(

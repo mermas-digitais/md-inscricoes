@@ -68,7 +68,7 @@ export async function POST(
     // Verificar se a turma existe
     const { data: turma, error: turmaError } = await supabase
       .from("turmas")
-      .select("id, nome_turma")
+      .select("id, codigo_turma")
       .eq("id", turma_id)
       .single();
 
@@ -133,7 +133,7 @@ export async function POST(
         turma: turma,
         aluna: aluna,
       },
-      message: `Aluna ${aluna.nome} vinculada com sucesso à turma ${turma.nome_turma}`,
+      message: `Aluna ${aluna.nome} vinculada com sucesso à turma ${turma.codigo_turma}`,
     });
   } catch (error) {
     console.error("Error vinculando aluna:", error);

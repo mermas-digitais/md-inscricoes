@@ -64,7 +64,7 @@ export async function GET(
         *,
         turmas (
           id,
-          nome_turma,
+          codigo_turma,
           cursos (
             id,
             nome_curso
@@ -219,7 +219,7 @@ export async function PUT(
         *,
         turmas (
           id,
-          nome_turma,
+          codigo_turma,
           cursos (
             id,
             nome_curso
@@ -289,7 +289,7 @@ export async function DELETE(
     // Verificar se a aula existe
     const { data: existingAula, error: existingError } = await supabase
       .from("aulas")
-      .select("id, data_aula, turmas(nome_turma)")
+      .select("id, data_aula, turmas(codigo_turma)")
       .eq("id", id)
       .single();
 

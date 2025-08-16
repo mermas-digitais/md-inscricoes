@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         *,
         turmas (
           id,
-          nome_turma,
+          codigo_turma,
           cursos (
             id,
             nome_curso
