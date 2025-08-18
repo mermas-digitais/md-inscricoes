@@ -20,14 +20,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { School, Clock, BookOpen, AlertCircle, Search } from "lucide-react";
+import {
+  School,
+  Clock,
+  BookOpen,
+  AlertCircle,
+  Search,
+  Download,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface Inscricao {
   id: string;
   nome: string;
   status: "Aprovada" | "Excedente" | "Inscrita";
   curso: "Robótica (Ensino Médio)" | "Jogos (Ensino Fundamental)";
+  cpf: string;
 }
 
 async function getInscricoes(): Promise<Inscricao[]> {
@@ -139,7 +158,48 @@ export default function ResultadoPage() {
                     inscricao.status === "Inscrita" ? (
                       <p>
                         <strong>Parabéns!</strong> Compareça no primeiro dia de
-                        aula com sua documentação completa.
+                        aula com sua{" "}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <span className="underline cursor-pointer font-semibold hover:text-green-900">
+                              documentação completa
+                            </span>
+                          </DialogTrigger>
+                          <DialogContent className="font-poppins border border-gray-300">
+                            <DialogHeader>
+                              <DialogTitle className="text-[#6C2EB5] text-2xl font-poppins">
+                                Documentação Necessária
+                              </DialogTitle>
+                            </DialogHeader>
+                            <ul className="list-disc flex flex-col items-center list-inside space-y-2 my-4 text-gray-700">
+                              <li className="self-start">
+                                Identidade da aluna.
+                              </li>
+                              <li className="self-start">
+                                Declaração de matrícula da escola.
+                              </li>
+                              <li className="self-start">
+                                Termo de consentimento assinado pelo responsável.
+                              </li>
+                              <li>
+                                <span className="font-semibold">
+                                  Clique no botão abaixo para gerar o termo.
+                                </span>
+                              </li>
+                              <Link
+                                href={`/termo/${encodeURIComponent(
+                                  inscricao.cpf
+                                )}`}
+                                target="_blank"
+                                className="ml-4 inline-flex self-center items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-[#FF4A97] hover:bg-[#e64387] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF4A97]"
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                Gerar Termo
+                              </Link>
+                            </ul>
+                          </DialogContent>
+                        </Dialog>
+                        .
                       </p>
                     ) : (
                       <p>

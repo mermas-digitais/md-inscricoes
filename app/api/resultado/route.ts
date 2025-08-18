@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     const { data, error } = await supabase
       .from("inscricoes")
-      .select("id, nome, curso, status")
+      .select("id, nome, curso, status, cpf")
       .in("status", ["INSCRITA", "EXCEDENTE"])
       .order("status", { ascending: false }) // Ordem: INSCRITA (Aprovada), EXCEDENTE
       .order("nome", { ascending: true }); // Ordem alfabética
