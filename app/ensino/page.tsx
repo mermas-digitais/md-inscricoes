@@ -1,5 +1,8 @@
 "use client";
 
+// Evita prerender estático que aciona o bailout de CSR quando usamos hooks de navegação
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";

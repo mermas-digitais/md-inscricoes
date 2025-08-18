@@ -17,15 +17,19 @@ export function Toaster() {
   const getToastIcon = (variant: string) => {
     switch (variant) {
       case "success":
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+        return (
+          <CheckCircle className="h-5 w-5 text-emerald-600 drop-shadow-sm" />
+        );
       case "destructive":
-        return <XCircle className="h-5 w-5 text-red-600" />;
+        return <XCircle className="h-5 w-5 text-red-600 drop-shadow-sm" />;
       case "warning":
-        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+        return (
+          <AlertTriangle className="h-5 w-5 text-amber-600 drop-shadow-sm" />
+        );
       case "info":
-        return <Info className="h-5 w-5 text-blue-600" />;
+        return <Info className="h-5 w-5 text-blue-600 drop-shadow-sm" />;
       default:
-        return <Bell className="h-5 w-5 text-gray-600" />;
+        return <Bell className="h-5 w-5 text-blue-600 drop-shadow-sm" />;
     }
   };
 
@@ -41,11 +45,11 @@ export function Toaster() {
       }) {
         return (
           <Toast key={id} variant={variant} {...props}>
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 mt-1">
                 {getToastIcon(variant || "default")}
               </div>
-              <div className="grid gap-1 flex-1">
+              <div className="grid gap-1.5 flex-1 min-w-0">
                 {title && <ToastTitle>{title}</ToastTitle>}
                 {description && (
                   <ToastDescription>{description}</ToastDescription>

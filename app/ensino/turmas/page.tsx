@@ -1,5 +1,8 @@
 "use client";
 
+// Evita prerender estático que aciona o bailout de CSR quando usamos hooks de navegação
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -530,7 +533,7 @@ export default function TurmasPage() {
           {monitorRole === "ADM" && (
             <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5 mr-2" />
               Nova Turma
@@ -538,49 +541,58 @@ export default function TurmasPage() {
           )}
         </div>
         {/* Filtros */}
-        <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-white via-blue-50/20 to-purple-50/20 backdrop-blur-sm">
+        <Card className="mb-8 border-0 shadow-xl bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 backdrop-blur-sm border border-blue-100/50">
           <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                <Filter className="w-5 h-5 text-blue-600" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <Filter className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-bold text-gray-900 text-lg">
                   Filtros de Busca
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-blue-600/70">
                   Encontre exatamente o que procura
                 </p>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-5 gap-4">
+            <div className="grid md:grid-cols-5 gap-6">
               <div className="md:col-span-2">
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                <Label className="text-sm font-semibold text-gray-800 mb-3 block">
                   Busca Geral
                 </Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-400 w-5 h-5" />
                   <Input
                     placeholder="Buscar por código, descrição ou curso..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200"
+                    className="pl-12 h-12 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-sm rounded-xl"
                   />
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                <Label className="text-sm font-semibold text-gray-800 mb-3 block">
                   Curso
                 </Label>
                 <Select value={filterCurso} onValueChange={setFilterCurso}>
-                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                  <SelectTrigger className="h-12 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-sm rounded-xl">
                     <SelectValue placeholder="Todos os cursos" />
                   </SelectTrigger>
-                  <SelectContent className="z-50">
-                    <SelectItem value="all">Todos os cursos</SelectItem>
+                  <SelectContent className="z-50 border-blue-200 shadow-xl rounded-xl bg-white/95 backdrop-blur-md">
+                    <SelectItem
+                      value="all"
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      Todos os cursos
+                    </SelectItem>
                     {cursos.map((curso) => (
-                      <SelectItem key={curso.id} value={curso.id}>
+                      <SelectItem
+                        key={curso.id}
+                        value={curso.id}
+                        className="hover:bg-blue-50 transition-colors"
+                      >
                         {curso.nome_curso}
                       </SelectItem>
                     ))}
@@ -588,17 +600,26 @@ export default function TurmasPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                <Label className="text-sm font-semibold text-gray-800 mb-3 block">
                   Ano Letivo
                 </Label>
                 <Select value={filterAno} onValueChange={setFilterAno}>
-                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                  <SelectTrigger className="h-12 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-sm rounded-xl">
                     <SelectValue placeholder="Todos os anos" />
                   </SelectTrigger>
-                  <SelectContent className="z-50">
-                    <SelectItem value="all">Todos os anos</SelectItem>
+                  <SelectContent className="z-50 border-blue-200 shadow-xl rounded-xl bg-white/95 backdrop-blur-md">
+                    <SelectItem
+                      value="all"
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      Todos os anos
+                    </SelectItem>
                     {years.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
+                      <SelectItem
+                        key={year}
+                        value={year.toString()}
+                        className="hover:bg-blue-50 transition-colors"
+                      >
                         {year}
                       </SelectItem>
                     ))}
@@ -606,18 +627,38 @@ export default function TurmasPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                <Label className="text-sm font-semibold text-gray-800 mb-3 block">
                   Status
                 </Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200">
+                  <SelectTrigger className="h-12 border-blue-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-sm rounded-xl">
                     <SelectValue placeholder="Todos os status" />
                   </SelectTrigger>
-                  <SelectContent className="z-50">
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    <SelectItem value="Planejamento">Planejamento</SelectItem>
-                    <SelectItem value="Ativa">Ativa</SelectItem>
-                    <SelectItem value="Concluída">Concluída</SelectItem>
+                  <SelectContent className="z-50 border-blue-200 shadow-xl rounded-xl bg-white/95 backdrop-blur-md">
+                    <SelectItem
+                      value="all"
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      Todos os status
+                    </SelectItem>
+                    <SelectItem
+                      value="Planejamento"
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      Planejamento
+                    </SelectItem>
+                    <SelectItem
+                      value="Ativa"
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      Ativa
+                    </SelectItem>
+                    <SelectItem
+                      value="Concluída"
+                      className="hover:bg-blue-50 transition-colors"
+                    >
+                      Concluída
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -625,33 +666,44 @@ export default function TurmasPage() {
           </CardContent>
         </Card>{" "}
         {/* Lista de turmas */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredTurmas.map((turma) => (
             <Card
               key={turma.id}
-              className="hover:shadow-lg transition-all duration-300 cursor-pointer group border-l-4 border-l-blue-400"
+              className="group relative overflow-hidden bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/50 hover:border-blue-400/50 hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:-translate-y-2 rounded-2xl"
               onClick={() => handleTurmaClick(turma.id)}
             >
-              <CardHeader className="pb-3">
+              {/* Accent Border */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600" />
+
+              <CardHeader className="pb-4 pt-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                      {turma.codigo_turma}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-purple-100 text-purple-800 border-purple-300">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                        <GraduationCap className="w-5 h-5 text-white" />
+                      </div>
+                      <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+                        {turma.codigo_turma}
+                      </CardTitle>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-300 px-3 py-1 rounded-full font-medium">
                         {turma.cursos?.nome_curso || "Curso não encontrado"}
                       </Badge>
                       {turma.status === "Ativa" ? (
-                        <Badge className="bg-green-100 text-green-800 border-green-300">
+                        <Badge className="bg-green-100 text-green-800 border-green-300 px-3 py-1 rounded-full font-medium">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
                           Ativa
                         </Badge>
                       ) : turma.status === "Planejamento" ? (
-                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-300 px-3 py-1 rounded-full font-medium">
+                          <div className="w-2 h-2 bg-amber-500 rounded-full mr-2" />
                           Planejamento
                         </Badge>
                       ) : (
-                        <Badge className="bg-gray-100 text-gray-800 border-gray-300">
+                        <Badge className="bg-slate-100 text-slate-800 border-slate-300 px-3 py-1 rounded-full font-medium">
+                          <div className="w-2 h-2 bg-slate-500 rounded-full mr-2" />
                           Concluída
                         </Badge>
                       )}
@@ -667,9 +719,9 @@ export default function TurmasPage() {
                             e.stopPropagation();
                             handleEditTurma(turma);
                           }}
-                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-9 w-9 p-0 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-blue-100 rounded-xl"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-4 h-4 text-blue-600" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -678,34 +730,45 @@ export default function TurmasPage() {
                             e.stopPropagation();
                             handleDeleteTurma(turma);
                           }}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-9 w-9 p-0 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-red-100 rounded-xl"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </>
                     )}
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 group-hover:bg-blue-200 transition-colors duration-300 flex items-center justify-center">
+                      <ChevronRight className="w-4 h-4 text-blue-600 group-hover:translate-x-0.5 transition-transform duration-300" />
+                    </div>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 {turma.descricao && (
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                     {turma.descricao}
                   </p>
                 )}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      {turma.ano_letivo}/{turma.semestre}º sem
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-gray-700">
+                      {turma.ano_letivo}/{turma.semestre}º semestre
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>Criada em {formatDate(turma.created_at)}</span>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="text-gray-600">
+                      Criada em {formatDate(turma.created_at)}
+                    </span>
                   </div>
                 </div>
+
+                {/* Subtle hover effect overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-600/0 group-hover:from-blue-500/5 group-hover:to-blue-600/10 transition-all duration-500 rounded-2xl pointer-events-none" />
               </CardContent>
             </Card>
           ))}
@@ -728,7 +791,7 @@ export default function TurmasPage() {
               {monitorRole === "ADM" && (
                 <Button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   Criar Primeira Turma

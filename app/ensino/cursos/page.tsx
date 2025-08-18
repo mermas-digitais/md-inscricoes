@@ -1,5 +1,8 @@
 "use client";
 
+// Evita prerender estático que tenta resolver hooks de navegação no servidor
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
