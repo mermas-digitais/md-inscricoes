@@ -30,6 +30,7 @@ export function TermoConsentimento({
       <html>
       <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Termo de Consentimento - Mermãs Digitais</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -42,12 +43,13 @@ export function TermoConsentimento({
           body {
             font-family: 'Poppins', sans-serif;
             line-height: 2.0;
-            max-width: 800px;
+            max-width: 800px; /* Restaurado para limitar a largura em telas grandes */
             margin: 0 auto;
-            padding: 40px;
+            padding: 40px 20px; /* Padding ajustado */
             color: #000;
             background: white;
             font-size: 14px;
+            width: 100%;
           }
           .header-info {
             text-align: center;
@@ -70,36 +72,23 @@ export function TermoConsentimento({
             font-size: 14px;
             line-height: 2.2;
           }
-          .field {
+          .field-container {
+            display: inline-block;
+            margin: 0 5px;
+            width: 45%;
+          }
+          .field, .field-small {
             font-weight: bold;
             border: none;
             border-bottom: 1px solid #000;
             background: transparent;
             padding: 2px 5px;
-            min-width: 200px;
-            display: inline-block;
+            width: 100%; /* Ocupa todo o container */
             text-align: center;
             font-family: 'Poppins', sans-serif;
             font-size: 14px;
           }
-          .field:focus {
-            outline: none;
-            background: #f0f0f0;
-            border-bottom: 2px solid #9854CB;
-          }
-          .field-small {
-            font-weight: bold;
-            border: none;
-            border-bottom: 1px solid #000;
-            background: transparent;
-            padding: 2px 5px;
-            min-width: 140px;
-            display: inline-block;
-            text-align: center;
-            font-family: 'Poppins', sans-serif;
-            font-size: 14px;
-          }
-          .field-small:focus {
+          .field:focus, .field-small:focus {
             outline: none;
             background: #f0f0f0;
             border-bottom: 2px solid #9854CB;
@@ -116,7 +105,8 @@ export function TermoConsentimento({
           }
           .signature-line {
             border-top: 1px solid #000;
-            width: 400px;
+            width: 100%; /* Responsivo */
+            max-width: 400px; /* Limite máximo */
             margin: 60px auto 0;
             padding-top: 8px;
             font-size: 12px;
@@ -151,6 +141,8 @@ export function TermoConsentimento({
             box-shadow: 0 4px 16px rgba(152, 84, 203, 0.3);
             transition: all 0.3s ease;
             font-family: 'Poppins', sans-serif;
+            width: 100%; /* Responsivo */
+            max-width: 300px; /* Limite máximo */
           }
           .print-button:hover {
             background: linear-gradient(135deg, #7e3ba3, #6a2d8a);
@@ -179,6 +171,38 @@ export function TermoConsentimento({
             color: #666;
             font-style: italic;
           }
+
+          /* Media Query para telas menores */
+          @media (max-width: 768px) {
+            body {
+              padding: 20px 15px;
+              line-height: 1.8;
+              font-size: 13px;
+            }
+            .title {
+              font-size: 14px;
+              margin-bottom: 30px;
+            }
+            .content {
+              line-height: 2.0;
+            }
+            .field-container {
+              display: block;
+              width: 100%;
+              margin: 10px 0;
+            }
+            .print-button {
+              padding: 14px 24px;
+              font-size: 15px;
+            }
+            .signature-line {
+              width: 100%;
+              margin-top: 40px;
+            }
+            .date-location {
+              margin-top: 40px;
+            }
+          }
         </style>
       </head>
       <body>
@@ -194,7 +218,7 @@ export function TermoConsentimento({
         </div>
         
         <div class="content">
-          Eu, <input type="text" class="field" value="${nomeResponsavel}" placeholder="Nome completo do responsável" style="width: 45%; min-width: 45%; display: inline-block; margin: 0 5px;">, inscrito(a) no CPF <input type="text" class="field-small" value="${cpfResponsavel}" placeholder="000.000.000-00" maxlength="14">, responsável legal pela participante <input type="text" class="field" value="${nomeParticipante}" readonly style="background: #f9f9f9; width: 45%; min-width: 45%; display: inline-block; margin: 0 5px;">,<br>
+          Eu, <span class="field-container"><input type="text" class="field" value="${nomeResponsavel}" placeholder="Nome completo do responsável"></span>, inscrito(a) no CPF <span class="field-container"><input type="text" class="field-small" value="${cpfResponsavel}" placeholder="000.000.000-00" maxlength="14"></span>, responsável legal pela participante <span class="field-container"><input type="text" class="field" value="${nomeParticipante}" readonly style="background: #f9f9f9;"></span>,
           declaro que estou ciente e autorizo a participação de minha filha/menor sob minha guarda no projeto Mermãs Digitais, que oferece oficinas e atividades educacionais na área de tecnologia e robótica.
         </div>
         
@@ -295,9 +319,9 @@ export function TermoConsentimento({
   };
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 sm:p-6 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4">
+        <div className="flex-shrink-0 mb-4 sm:mb-0">
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
             <Download className="w-6 h-6 text-blue-600" />
           </div>
