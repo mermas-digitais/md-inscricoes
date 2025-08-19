@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     const { response: authError } = await requireAuth(request, "MONITOR");
     if (authError) return authError;
 
-    const { turma_id, data_aula, conteudo_ministrado } = await request.json();
+    const { turma_id, data_aula, titulo, descricao, conteudo, carga_horaria } =
+      await request.json();
 
     // Validações obrigatórias
     if (!turma_id) {
@@ -26,6 +27,13 @@ export async function POST(request: NextRequest) {
     if (!data_aula) {
       return NextResponse.json(
         { error: "Data da aula é obrigatória" },
+        { status: 400 }
+      );
+    }
+
+    if (!titulo) {
+      return NextResponse.json(
+        { error: "Título da aula é obrigatório" },
         { status: 400 }
       );
     }
@@ -79,12 +87,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir aula no banco
+    // Combinar título, descrição e conteúdo no campo conteudo_ministrado
+    const conteudoCompleto = [
+      titulo,
+      descricao && `Descrição: ${descricao}`,
+      conteudo && `Conteúdo: ${conteudo}`,
+      carga_horaria && `Carga Horária: ${carga_horaria}h`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     const { data: aula, error: aulaError } = await supabase
       .from("aulas")
       .insert({
         turma_id,
         data_aula,
-        conteudo_ministrado: conteudo_ministrado?.trim() || null,
+        conteudo_ministrado: conteudoCompleto.trim() || null,
       })
       .select()
       .single();

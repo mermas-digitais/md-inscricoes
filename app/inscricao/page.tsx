@@ -31,7 +31,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { z } from "zod";
 
 interface FormData {

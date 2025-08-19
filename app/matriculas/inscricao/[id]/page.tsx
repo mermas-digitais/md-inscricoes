@@ -355,13 +355,21 @@ export default function DetalheInscricao({
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`/api/matriculas/inscricoes/${inscricaoId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(editFormData),
-      });
+      // Formatar CPF antes de enviar usando a função formatCPF
+      let formDataToSend = { ...editFormData };
+      if (formDataToSend.cpf) {
+        formDataToSend.cpf = formatCPF(formDataToSend.cpf);
+      }
+      const response = await fetch(
+        `/api/matriculas/inscricoes/${inscricaoId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formDataToSend),
+        }
+      );
 
       if (response.ok) {
         const { data } = await response.json();
@@ -411,13 +419,16 @@ export default function DetalheInscricao({
 
   const executeStatusChange = async (newStatus: string) => {
     try {
-      const response = await fetch(`/api/matriculas/inscricoes/${inscricaoId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const response = await fetch(
+        `/api/matriculas/inscricoes/${inscricaoId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
 
       if (response.ok) {
         setInscricao((prev) => (prev ? { ...prev, status: newStatus } : null));

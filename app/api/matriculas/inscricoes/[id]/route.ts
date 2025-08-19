@@ -156,7 +156,7 @@ export async function PATCH(
       email: email.trim().toLowerCase(),
       telefone_whatsapp: telefone_whatsapp.trim(),
       data_nascimento,
-      cpf: cpfClean,
+      cpf: cpf.trim(), 
       cep: cep.trim(),
       logradouro: logradouro.trim(),
       numero: numero.trim(),

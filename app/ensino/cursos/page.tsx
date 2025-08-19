@@ -3,7 +3,7 @@
 // Evita prerender estático que tenta resolver hooks de navegação no servidor
 export const dynamic = "force-dynamic";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { useToast, toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ModuleHeader } from "@/components/module-header";
 
 interface Curso {
@@ -64,7 +64,7 @@ interface Curso {
   created_at: string;
 }
 
-export default function CursosPage() {
+function CursosPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const monitorEmail = searchParams.get("email");
@@ -1306,5 +1306,26 @@ export default function CursosPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Loading component for Suspense
+function CursosPageLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
+        <p className="text-gray-600">Carregando cursos...</p>
+      </div>
+    </div>
+  );
+}
+
+// Wrapper component with Suspense
+export default function CursosPageWrapper() {
+  return (
+    <Suspense fallback={<CursosPageLoading />}>
+      <CursosPage />
+    </Suspense>
   );
 }

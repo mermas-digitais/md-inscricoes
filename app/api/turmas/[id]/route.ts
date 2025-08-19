@@ -13,10 +13,10 @@ export async function GET(
 ) {
   try {
     // Verificar autenticação (MONITOR ou ADM pode buscar turma)
-    const { response: authError } = await requireAuth(request, "MONITOR");
-    if (authError) return authError;
+    const authResult = await requireAuth(request, "MONITOR");
+    if (authResult.response) return authResult.response;
 
-    const { id } = params;
+    const { id } = await params;
 
     // Validar UUID
     const uuidRegex =
@@ -89,7 +89,7 @@ export async function GET(
           id,
           nome,
           email,
-          funcao
+          role
         )
       `
       )

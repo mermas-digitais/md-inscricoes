@@ -3,7 +3,7 @@
 // Evita prerender estático que aciona o bailout de CSR quando usamos hooks de navegação
 export const dynamic = "force-dynamic";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +78,7 @@ interface Turma {
   cursos?: Curso;
 }
 
-export default function TurmasPage() {
+function TurmasPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const monitorEmail = searchParams.get("email");
@@ -1128,5 +1128,26 @@ export default function TurmasPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Loading component for Suspense
+function TurmasPageLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
+        <p className="text-gray-600">Carregando turmas...</p>
+      </div>
+    </div>
+  );
+}
+
+// Wrapper component with Suspense
+export default function TurmasPageWrapper() {
+  return (
+    <Suspense fallback={<TurmasPageLoading />}>
+      <TurmasPage />
+    </Suspense>
   );
 }
