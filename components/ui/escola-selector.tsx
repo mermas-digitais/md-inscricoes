@@ -12,7 +12,10 @@ import { cn } from "@/lib/utils";
 interface Escola {
   id: number;
   nome: string;
-  tipo: string;
+  rede: string;
+  publica: boolean;
+  uf: string;
+  municipio: string;
 }
 
 interface EscolaSelectorProps {
@@ -41,12 +44,12 @@ export default function EscolaSelector({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Função para determinar o tipo de escola baseado na escolaridade
-  const getTipoEscolaFiltro = (escolaridade: string): string | null => {
+  // Função para determinar a rede de escola baseado na escolaridade
+  const getRedeEscolaFiltro = (escolaridade: string): string | null => {
     if (escolaridade === "Ensino Fundamental 2") {
-      return "Municipal";
+      return "municipal";
     } else if (escolaridade === "Ensino Médio") {
-      return "Estadual";
+      return "estadual";
     }
     return null; // Sem filtro se não especificado
   };
@@ -58,10 +61,12 @@ export default function EscolaSelector({
 
       setIsLoading(true);
       try {
-        const tipoFiltro = getTipoEscolaFiltro(escolaridade);
-        const url = tipoFiltro
-          ? `/api/escolas?tipo=${encodeURIComponent(tipoFiltro)}&limit=50`
-          : `/api/escolas?limit=50`;
+        const redeFiltro = getRedeEscolaFiltro(escolaridade);
+        const url = redeFiltro
+          ? `/api/escolas-prisma?rede=${encodeURIComponent(
+              redeFiltro
+            )}&limit=50`
+          : `/api/escolas-prisma?limit=50`;
 
         const response = await fetch(url);
 
@@ -88,10 +93,12 @@ export default function EscolaSelector({
       if (searchTerm.length < 2) {
         // Se não há busca mas há escolaridade, recarregar escolas iniciais
         if (escolaridade) {
-          const tipoFiltro = getTipoEscolaFiltro(escolaridade);
-          const url = tipoFiltro
-            ? `/api/escolas?tipo=${encodeURIComponent(tipoFiltro)}&limit=50`
-            : `/api/escolas?limit=50`;
+          const redeFiltro = getRedeEscolaFiltro(escolaridade);
+          const url = redeFiltro
+            ? `/api/escolas-prisma?rede=${encodeURIComponent(
+                redeFiltro
+              )}&limit=50`
+            : `/api/escolas-prisma?limit=50`;
 
           setIsLoading(true);
           try {
@@ -113,13 +120,13 @@ export default function EscolaSelector({
 
       setIsLoading(true);
       try {
-        const tipoFiltro = getTipoEscolaFiltro(escolaridade || "");
-        let url = `/api/escolas?search=${encodeURIComponent(
+        const redeFiltro = getRedeEscolaFiltro(escolaridade || "");
+        let url = `/api/escolas-prisma?search=${encodeURIComponent(
           searchTerm
         )}&limit=20`;
 
-        if (tipoFiltro) {
-          url += `&tipo=${encodeURIComponent(tipoFiltro)}`;
+        if (redeFiltro) {
+          url += `&rede=${encodeURIComponent(redeFiltro)}`;
         }
 
         const response = await fetch(url);
@@ -212,15 +219,15 @@ export default function EscolaSelector({
     }
   };
 
-  const getTipoColor = (tipo: string) => {
-    switch (tipo) {
-      case "Municipal":
+  const getRedeColor = (rede: string) => {
+    switch (rede) {
+      case "municipal":
         return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Estadual":
+      case "estadual":
         return "bg-green-100 text-green-800 border-green-200";
-      case "Federal":
+      case "federal":
         return "bg-purple-100 text-purple-800 border-purple-200";
-      case "Particular":
+      case "particular":
         return "bg-orange-100 text-orange-800 border-orange-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
@@ -228,23 +235,15 @@ export default function EscolaSelector({
   };
 
   return (
-    <div className={cn("relative", className)} ref={dropdownRef}>
-      <Label htmlFor="escola" className="text-sm font-medium text-gray-700">
-        Escola onde estuda *
-        {escolaridade && (
-          <span className="ml-2 text-xs text-purple-600 font-normal">
-            (
-            {escolaridade === "Ensino Fundamental 2"
-              ? "Mostrando escolas municipais"
-              : escolaridade === "Ensino Médio"
-              ? "Mostrando escolas estaduais"
-              : "Todas as escolas"}
-            )
-          </span>
-        )}
-      </Label>
+    <div className={cn("w-full", className)} ref={dropdownRef}>
+      <label
+        htmlFor="escola"
+        className="block text-sm font-semibold text-gray-700 font-poppins mb-2"
+      >
+        Escola onde estuda<span className="text-[#FF4A97] ml-1">*</span>
+      </label>
 
-      <div className="relative mt-1">
+      <div className="relative">
         {selectedEscola ? (
           // Mostrar escola selecionada
           <div className="flex items-center gap-2 p-3 border border-gray-300 rounded-md bg-white">
@@ -256,13 +255,13 @@ export default function EscolaSelector({
               <div className="flex items-center gap-2 mt-1">
                 <Badge
                   variant="outline"
-                  className={getTipoColor(selectedEscola.tipo)}
+                  className={getRedeColor(selectedEscola.rede)}
                 >
-                  {selectedEscola.tipo}
+                  {selectedEscola.rede}
                 </Badge>
                 <div className="flex items-center text-xs text-gray-500">
                   <MapPin className="w-3 h-3 mr-1" />
-                  Imperatriz, MA
+                  {selectedEscola.municipio}, {selectedEscola.uf}
                 </div>
               </div>
             </div>
@@ -277,10 +276,10 @@ export default function EscolaSelector({
             </Button>
           </div>
         ) : (
-          // Mostrar campo de busca
+          // Mostrar campo de busca com estilo CustomInput
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+            <input
               ref={inputRef}
               type="text"
               placeholder={placeholder}
@@ -288,9 +287,12 @@ export default function EscolaSelector({
               onChange={handleInputChange}
               onFocus={handleInputFocus}
               className={cn(
-                "pl-10 pr-4",
-                error &&
-                  "border-red-300 focus:border-red-500 focus:ring-red-500"
+                "w-full rounded-[65px] px-4 sm:px-6 py-3 sm:py-4 bg-[#F8F8F8] text-base text-gray-800 border-2 border-transparent transition-all duration-200",
+                "focus:ring-0 focus:outline-none focus:border-[#FF4A97] focus:bg-white",
+                "placeholder:text-[#C0C0C0] font-poppins",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "text-base min-h-[48px] pl-10",
+                error && "border-red-500 bg-red-50"
               )}
             />
           </div>
@@ -325,13 +327,13 @@ export default function EscolaSelector({
                           <div className="flex items-center gap-2 mt-1">
                             <Badge
                               variant="outline"
-                              className={getTipoColor(escola.tipo)}
+                              className={getRedeColor(escola.rede)}
                             >
-                              {escola.tipo}
+                              {escola.rede}
                             </Badge>
                             <div className="flex items-center text-xs text-gray-500">
                               <MapPin className="w-3 h-3 mr-1" />
-                              Imperatriz, MA
+                              {escola.municipio}, {escola.uf}
                             </div>
                           </div>
                         </div>
@@ -361,8 +363,6 @@ export default function EscolaSelector({
         )}
       </div>
 
-      {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
-
       <p className="text-gray-500 text-xs mt-1">
         {escolaridade
           ? `Digite o nome da sua escola ou selecione da lista${
@@ -374,6 +374,9 @@ export default function EscolaSelector({
             }`
           : "Digite o nome da sua escola ou selecione da lista"}
       </p>
+      {error && (
+        <p className="text-red-500 text-sm mt-1 font-poppins">{error}</p>
+      )}
     </div>
   );
 }

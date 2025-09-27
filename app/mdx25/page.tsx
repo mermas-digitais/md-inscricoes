@@ -12,7 +12,7 @@ import { Header } from "@/components/header";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { z } from "zod";
 
-export default function HomePage() {
+export default function MDX25HomePage() {
   const [step, setStep] = useState<"welcome" | "verify">("welcome");
   const [verificationCode, setVerificationCode] = useState("");
   const [codeDigits, setCodeDigits] = useState<string[]>([
@@ -25,7 +25,6 @@ export default function HomePage() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
-
   // Variável de controle do countdown - pode ser controlada via env
   const [showCountdown] = useState(
     process.env.NEXT_PUBLIC_SHOW_COUNTDOWN !== "false"
@@ -53,17 +52,16 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Countdown para deadline das inscrições
+  // Countdown para deadline das inscrições MDX25
   useEffect(() => {
-    // Data de encerramento: 16 de agosto de 2024 às 23:59
-    // Como 16/08/2024 já passou, vou usar 2025 para o countdown funcionar
-    const deadline = new Date("2025-08-16T23:59:59-03:00"); // UTC-3 (horário de Brasília)
+    // Data de encerramento: 31 de dezembro de 2025 às 23:59
+    const deadline = new Date("2025-12-31T23:59:59-03:00"); // UTC-3 (horário de Brasília)
 
     const updateCountdown = () => {
       const now = new Date();
       const difference = deadline.getTime() - now.getTime();
 
-      console.log("Deadline:", deadline);
+      console.log("MDX25 Deadline:", deadline);
       console.log("Now:", now);
       console.log("Difference (ms):", difference);
 
@@ -77,10 +75,10 @@ export default function HomePage() {
         );
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
-        console.log("Countdown:", { days, hours, minutes, seconds });
+        console.log("MDX25 Countdown:", { days, hours, minutes, seconds });
         setTimeLeft({ days, hours, minutes, seconds });
       } else {
-        console.log("Deadline passed - setting zeros");
+        console.log("MDX25 Deadline passed - setting zeros");
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
     };
@@ -132,7 +130,7 @@ export default function HomePage() {
     emailForm.setSubmitting(true);
 
     try {
-      const response = await fetch("/api/send-verification", {
+      const response = await fetch("/api/mdx25/send-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -179,15 +177,17 @@ export default function HomePage() {
     codeForm.setSubmitting(true);
 
     try {
-      const response = await fetch("/api/verify-code", {
+      const response = await fetch("/api/mdx25/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code }),
       });
 
       if (response.ok) {
-        // Redirecionar para o formulário de inscrição
-        window.location.href = `/inscricao?email=${encodeURIComponent(email)}`;
+        // Redirecionar para o formulário de inscrição MDX25
+        window.location.href = `/mdx25/inscricoes?email=${encodeURIComponent(
+          email
+        )}`;
       } else {
         const data = await response.json();
         throw new Error(data.error || "Código inválido");
@@ -226,15 +226,15 @@ export default function HomePage() {
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
                   <span className="text-white font-bold text-lg tracking-wide animate-pulse">
-                    ⚡ ÚLTIMAS HORAS ⚡
+                    ⚡ MDX25 - ÚLTIMAS HORAS ⚡
                   </span>
                   <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
                 </div>
                 <p className="text-white/90 text-sm font-medium">
-                  As inscrições encerram <strong>16/08/2025 às 23:59</strong> •
+                  As inscrições encerram <strong>31/12/2025 às 23:59</strong> •
                   Apenas{" "}
                   <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs whitespace-nowrap">
-                    19 VAGAS
+                    100 VAGAS
                   </span>{" "}
                   disponíveis!
                 </p>
@@ -287,7 +287,7 @@ export default function HomePage() {
                 <div className="mt-3 text-center">
                   <div className="inline-flex items-center gap-2 bg-yellow-400/90 text-black px-4 py-2 rounded-full text-sm font-bold hover:bg-yellow-300/95 transition-all duration-300 shadow-lg shadow-yellow-400/30">
                     <AlertTriangle className="w-4 h-4" />
-                    INSCREVA-SE AGORA ANTES QUE SEJA TARDE!
+                    INSCREVA-SE AGORA NO MDX25!
                   </div>
                 </div>
               </div>
@@ -304,7 +304,7 @@ export default function HomePage() {
           <div className="absolute top-0 left-0 right-0 h-[120vh]">
             <img
               src="/assets/images/email_asset.svg"
-              alt="Fundo da verificação"
+              alt="Fundo da verificação MDX25"
               className="absolute top-0 left-0 w-full h-full object-contain object-top pointer-events-none select-none"
               style={{
                 transform: "scale(1.0)",
@@ -324,7 +324,7 @@ export default function HomePage() {
               <div className="w-full max-w-md">
                 <div className="rounded-2xl bg-white shadow-lg px-4 sm:px-6 pt-6 pb-6 font-poppins">
                   <div className="text-xs font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
-                    ENVIAMOS UM CÓDIGO NO SEU EMAIL
+                    MDX25 - ENVIAMOS UM CÓDIGO NO SEU EMAIL
                   </div>
                   <div className="text-3xl md:text-3xl font-extrabold text-[#6C2EB5] leading-7 mb-4 text-left font-poppins">
                     Digite o código que você recebeu
@@ -404,15 +404,15 @@ export default function HomePage() {
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
                 <span className="text-white font-bold text-lg tracking-wide animate-pulse">
-                  ⚡ ÚLTIMAS HORAS ⚡
+                  ⚡ MDX25 - ÚLTIMAS HORAS ⚡
                 </span>
                 <Zap className="w-5 h-5 text-yellow-300 animate-pulse" />
               </div>
               <p className="text-white/90 text-sm font-medium">
-                As inscrições encerram <strong>16/08/2025 às 23:59</strong> •
+                As inscrições encerram <strong>31/12/2025 às 23:59</strong> •
                 Apenas{" "}
                 <span className="bg-yellow-400 text-black px-2 py-1 rounded-full font-bold text-xs whitespace-nowrap">
-                  19 VAGAS
+                  100 VAGAS
                 </span>{" "}
                 disponíveis!
               </p>
@@ -465,7 +465,7 @@ export default function HomePage() {
               <div className="mt-3 text-center">
                 <div className="inline-flex items-center gap-2 bg-yellow-400/90 text-black px-4 py-2 rounded-full text-sm font-bold hover:bg-yellow-300/95 transition-all duration-300 shadow-lg shadow-yellow-400/30">
                   <AlertTriangle className="w-4 h-4" />
-                  INSCREVA-SE AGORA ANTES QUE SEJA TARDE!
+                  INSCREVA-SE AGORA NO MDX25!
                 </div>
               </div>
             </div>
@@ -481,8 +481,8 @@ export default function HomePage() {
         {/* Camada 2: Imagem de fundo fixa no topo respeitando o header - altura expandida */}
         <div className="absolute top-0 left-0 right-0 h-[200vh]">
           <img
-            src="/assets/images/home_asset.svg"
-            alt="Fundo da página inicial"
+            src="/assets/images/mdx25/home_asset.svg"
+            alt="Fundo da página inicial MDX25"
             className="absolute top-0 left-0 w-full h-full object-contain object-top pointer-events-none select-none"
             style={{
               transform: "scale(1.0)",
@@ -542,11 +542,11 @@ export default function HomePage() {
           <div className="h-[calc(60vh+550px)] sm:h-[calc(70vh+550px)] md:h-[calc(75vh+550px)] lg:h-[calc(80vh+550px)] xl:h-[calc(85vh+550px)] flex-shrink-0"></div>
 
           {/* Container do conteúdo principal */}
-          <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-4 bg-[#9854CB]">
+          <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-4 bg-[#9754CB00]">
             <div className="w-full max-w-md">
               <div className="rounded-2xl bg-white shadow-lg px-6 pt-6 pb-6 font-poppins">
                 <div className="text-xs font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
-                  COMECE SUA INSCRIÇÃO AGORA MESMO!
+                  MDX25 - COMECE SUA INSCRIÇÃO AGORA MESMO!
                 </div>
                 <div className="text-3xl md:text-3xl font-extrabold text-[#6C2EB5] leading-7 mb-4 text-left font-poppins">
                   Vamos começar a inscrição?
