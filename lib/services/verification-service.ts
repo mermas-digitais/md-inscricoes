@@ -58,6 +58,21 @@ export class VerificationService {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
+        // Configurações para resolver timeout
+        connectionTimeout: 60000, // 60 segundos
+        greetingTimeout: 30000, // 30 segundos
+        socketTimeout: 60000, // 60 segundos
+        // Configurações de TLS
+        tls: {
+          rejectUnauthorized: false,
+          ciphers: "SSLv3",
+        },
+        // Pool de conexões
+        pool: true,
+        maxConnections: 1,
+        maxMessages: 3,
+        rateDelta: 20000,
+        rateLimit: 5,
       });
 
       const subject = isMDX25
@@ -76,12 +91,37 @@ export class VerificationService {
         </div>
       `;
 
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: email,
-        subject: subject,
-        html: html,
-      });
+      // Tentar enviar email com retry
+      let retries = 3;
+      let lastError;
+
+      while (retries > 0) {
+        try {
+          await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: email,
+            subject: subject,
+            html: html,
+          });
+          break; // Sucesso, sair do loop
+        } catch (error) {
+          lastError = error;
+          retries--;
+          console.log(
+            `Tentativa de envio falhou, ${retries} tentativas restantes:`,
+            error
+          );
+
+          if (retries > 0) {
+            // Aguardar antes de tentar novamente
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          }
+        }
+      }
+
+      if (retries === 0) {
+        throw lastError;
+      }
 
       return true;
     } catch (error) {
@@ -178,8 +218,10 @@ export class VerificationService {
 
       if (!emailSent) {
         console.error("Falha ao enviar email de verificação");
-        // Temporariamente retornar sucesso mesmo se o email falhar
-        console.log("⚠️ Email falhou, mas retornando sucesso para teste");
+        return {
+          success: false,
+          error: "Falha ao enviar email de verificação",
+        };
       }
 
       return {

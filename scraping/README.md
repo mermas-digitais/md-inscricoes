@@ -1,55 +1,54 @@
-# 🕷️ Scraping de Escolas do Maranhão
+# 🏫 Scraping de Escolas Federais do Maranhão
 
-Este diretório contém todos os scripts necessários para extrair dados de escolas do Maranhão do site `escolas.com.br`.
+Este diretório contém scripts para fazer scraping das escolas federais do Maranhão.
 
 ## 📁 Arquivos
 
-- **`scrape-escolas-ma.py`** - Script principal de scraping
-- **`requirements.txt`** - Dependências Python necessárias
-- **`test-dependencies.py`** - Teste de dependências
-- **`run-scraping.ps1`** - Script de execução para Windows
-- **`run-scraping.sh`** - Script de execução para Linux/Mac
-- **`README-SCRAPING.md`** - Documentação detalhada
+- `scrape-federais-ma-json.py` - Script principal de scraping que salva em JSON
+- `escolas_federais_ma.json` - Arquivo JSON com as 30 escolas federais coletadas
+- `README-FEDERAIIS.md` - Documentação detalhada do processo
+- `requirements.txt` - Dependências Python necessárias
 
-## 🚀 Execução Rápida
+## 🎯 Objetivo
 
-### Windows
+Fazer scraping das escolas federais do Maranhão da URL `https://escolas.com.br/federais/ma/` e salvar os dados em formato JSON.
 
-```powershell
-.\run-scraping.ps1
-```
+## 🚀 Como Usar
 
-### Linux/Mac
+### Execução Manual
 
 ```bash
-chmod +x run-scraping.sh
-./run-scraping.sh
+cd scraping
+pip install requests beautifulsoup4
+python scrape-federais-ma-json.py
 ```
 
-### Manual
+## 📊 Resultados
 
-```bash
-pip install -r requirements.txt
-python scrape-escolas-ma.py
-```
+- **30 escolas federais** encontradas no Maranhão
+- **Dados coletados**: Nome, rede (federal), município, UF (MA)
+- **Arquivo JSON gerado**: `escolas_federais_ma.json`
 
-## 📊 Resultado
+## 🏫 Escolas Incluídas
 
-O script gera um arquivo `escolas.json` com todas as escolas do Maranhão no formato:
+- **Escola Caminho das Estrelas** (Alcântara-MA)
+- **29 campi do IFMA** (Instituto Federal do Maranhão) distribuídos por todo o estado
 
-```json
-{
-  "nome": "Nome da Escola",
-  "rede": "municipal|estadual|federal|particular",
-  "publica": true|false,
-  "uf": "MA",
-  "municipio": "Nome do Município"
-}
-```
+## ✅ Status
 
-## 🔗 Integração
+- ✅ Scraping concluído com sucesso
+- ✅ 30 escolas federais coletadas
+- ✅ Dados salvos em JSON
+- ✅ Escolas já enviadas para o Supabase
 
-Após o scraping, use os scripts em `../scripts/` para inserir os dados no Supabase:
+## 📝 Dependências
 
-- `insert-escolas-supabase.py` - Inserção via API
-- `insert-escolas-supabase.sql` - Inserção via SQL
+- `requests` - Para fazer requisições HTTP
+- `beautifulsoup4` - Para parsing HTML
+
+## 🎯 Vantagens
+
+- **Foco**: Apenas escolas federais do Maranhão
+- **Eficiência**: Scraping rápido e direto
+- **Simplicidade**: Script único e objetivo
+- **Confiabilidade**: Dados limpos e estruturados

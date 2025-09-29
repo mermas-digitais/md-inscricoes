@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { CustomButton } from "@/components/ui/custom-button";
 import {
   Card,
   CardContent,
@@ -10,201 +10,101 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  CheckCircle,
-  Mail,
-  Calendar,
-  MapPin,
-  Users,
-  Sparkles,
-} from "lucide-react";
+import { Instagram } from "lucide-react";
+import { Header } from "@/components/header";
 
 function ConfirmacaoMDX25Content() {
   const searchParams = useSearchParams();
-  const curso = searchParams.get("curso") || "MDX25";
-  const email = searchParams.get("email") || "";
+  const curso = searchParams.get("curso");
+  const email = searchParams.get("email");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
-              <CheckCircle className="w-16 h-16 text-white" />
+    <>
+      <Header />
+      {/* Layout padrão - estrutura de camadas que ocupa 100% da viewport */}
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Camada 1: Fundo roxo - sempre cobre todo o espaço incluindo scroll */}
+        <div className="absolute inset-0 w-full min-h-[200vh] bg-[#9854CB]"></div>
+
+        {/* Camada 2: Imagem de fundo fixa no topo respeitando o header - altura expandida */}
+        <div className="absolute top-0 left-0 right-0 h-[200vh]">
+          <img
+            src="/assets/images/mdx25/confirm_mdx25.svg"
+            alt="Fundo da confirmação MDX25"
+            className="absolute top-0 left-0 w-full h-full object-contain object-top pointer-events-none select-none"
+            style={{
+              transform: "scale(1.0)",
+              willChange: "transform",
+            }}
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Camada 3: Conteúdo scrollável - ocupa mesma altura que o fundo */}
+        <div className="relative z-10 min-h-[200vh] flex flex-col">
+          {/* Espaçamento superior maior para posicionar o card quase no final */}
+          <div className="h-[120vh] sm:h-[110vh] lg:h-[120vh] flex-shrink-0"></div>
+
+          {/* Container do conteúdo principal */}
+          <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-20">
+            <div className="w-full max-w-2xl">
+              {/* Card principal */}
+              <Card
+                className="rounded-2xl bg-white shadow-lg mt-12
+               font-poppins"
+              >
+                <CardHeader className="px-6 pt-6">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <CardTitle className="text-sm font-semibold text-[#FF4A97] tracking-wider text-left font-poppins">
+                        REDES SOCIAIS
+                      </CardTitle>
+                      <CardDescription className="text-3xl md:text-3xl font-extrabold text-[#6C2EB5] leading-7 mb-0 text-left font-poppins">
+                        Segue a gente aí,
+                        <br />
+                        mermã
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6 px-6 pb-2">
+                  <div className="text-center space-y-4">
+                    <div className="">
+                      <CustomButton
+                        type="button"
+                        onClick={() =>
+                          window.open(
+                            "https://instagram.com/mermasdigitais",
+                            "_blank"
+                          )
+                        }
+                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                      >
+                        <Instagram className="w-6 h-6 mr-2" />
+                        INSTAGRAM (@mermasdigitais)
+                      </CustomButton>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            🎉 Inscrição Confirmada!
-          </h1>
-          <p className="text-xl md:text-2xl opacity-90">
-            Bem-vinda ao <strong>MDX25</strong> - Mermãs Digitais!
-          </p>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Success Card */}
-          <Card className="border-2 border-green-200 bg-green-50">
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="bg-green-500 rounded-full p-3">
-                  <CheckCircle className="w-8 h-8 text-white" />
-                </div>
-              </div>
-              <CardTitle className="text-2xl text-green-800">
-                Inscrição Realizada com Sucesso!
-              </CardTitle>
-              <CardDescription className="text-green-700">
-                Sua participação no MDX25 está confirmada
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Mail className="w-5 h-5 text-green-600" />
-                  <span className="font-semibold text-green-800">Email:</span>
-                </div>
-                <p className="text-green-700">{email}</p>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Sparkles className="w-5 h-5 text-green-600" />
-                  <span className="font-semibold text-green-800">Curso:</span>
-                </div>
-                <p className="text-green-700 font-medium">{curso}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Event Details */}
-          <Card className="border-2 border-purple-200 bg-purple-50">
-            <CardHeader>
-              <CardTitle className="text-2xl text-purple-800 flex items-center gap-2">
-                <Calendar className="w-6 h-6" />
-                Detalhes do MDX25
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Calendar className="w-5 h-5 text-purple-600" />
-                  <span className="font-semibold text-purple-800">Data:</span>
-                </div>
-                <p className="text-purple-700">A ser definida - 2025</p>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <MapPin className="w-5 h-5 text-purple-600" />
-                  <span className="font-semibold text-purple-800">Local:</span>
-                </div>
-                <p className="text-purple-700">A ser definido</p>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Users className="w-5 h-5 text-purple-600" />
-                  <span className="font-semibold text-purple-800">Vagas:</span>
-                </div>
-                <p className="text-purple-700">100 vagas disponíveis</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Next Steps */}
-        <Card className="mt-8 border-2 border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-2xl text-blue-800">
-              Próximos Passos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">
-                  1
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-800">
-                    Confirmação por Email
-                  </p>
-                  <p className="text-blue-700">
-                    Você receberá um email de confirmação em breve com todos os
-                    detalhes.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">
-                  2
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-800">
-                    Aguardar Informações
-                  </p>
-                  <p className="text-blue-700">
-                    Fique atenta ao seu email para receber informações sobre
-                    data, local e horário.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">
-                  3
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-800">
-                    Preparar-se para o Evento
-                  </p>
-                  <p className="text-blue-700">
-                    Prepare-se para uma experiência incrível de aprendizado e
-                    networking!
-                  </p>
-                </div>
+          {/* Footer fixo no final da página */}
+          <div className="flex-shrink-0 mt-auto pb-8 pt-8">
+            <div className="flex justify-center px-4">
+              <div className="w-full max-w-md">
+                <img
+                  src="/assets/images/footer.svg"
+                  alt="Footer com logos"
+                  className="w-full h-auto object-contain"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Contact Info */}
-        <Card className="mt-8 border-2 border-pink-200 bg-pink-50">
-          <CardHeader>
-            <CardTitle className="text-2xl text-pink-800">
-              Precisa de Ajuda?
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-pink-700 mb-4">
-              Se você tiver alguma dúvida sobre sua inscrição no MDX25, entre em
-              contato conosco:
-            </p>
-            <div className="space-y-2">
-              <p className="text-pink-700">
-                <strong>Email:</strong> contato@mermasdigitais.com.br
-              </p>
-              <p className="text-pink-700">
-                <strong>WhatsApp:</strong> (99) 99999-9999
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Footer */}
-      <div className="bg-gray-800 text-white py-8">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <p className="text-lg font-semibold mb-2">MDX25 - Mermãs Digitais</p>
-          <p className="text-gray-300">Construindo o futuro digital feminino</p>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

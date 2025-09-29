@@ -7,7 +7,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const tipo = searchParams.get("tipo");
     const rede = searchParams.get("rede");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = searchParams.get("limit")
+      ? parseInt(searchParams.get("limit")!)
+      : undefined;
 
     // Use the service to find schools
     const result = await escolasService.findEscolas({

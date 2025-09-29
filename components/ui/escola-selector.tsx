@@ -63,9 +63,7 @@ export default function EscolaSelector({
       try {
         const redeFiltro = getRedeEscolaFiltro(escolaridade);
         const url = redeFiltro
-          ? `/api/escolas?rede=${encodeURIComponent(
-              redeFiltro
-            )}&limit=50`
+          ? `/api/escolas?rede=${encodeURIComponent(redeFiltro)}&limit=50`
           : `/api/escolas?limit=50`;
 
         const response = await fetch(url);
@@ -95,9 +93,7 @@ export default function EscolaSelector({
         if (escolaridade) {
           const redeFiltro = getRedeEscolaFiltro(escolaridade);
           const url = redeFiltro
-            ? `/api/escolas?rede=${encodeURIComponent(
-                redeFiltro
-              )}&limit=50`
+            ? `/api/escolas?rede=${encodeURIComponent(redeFiltro)}&limit=50`
             : `/api/escolas?limit=50`;
 
           setIsLoading(true);
@@ -121,9 +117,7 @@ export default function EscolaSelector({
       setIsLoading(true);
       try {
         const redeFiltro = getRedeEscolaFiltro(escolaridade || "");
-        let url = `/api/escolas?search=${encodeURIComponent(
-          searchTerm
-        )}&limit=20`;
+        let url = `/api/escolas?search=${encodeURIComponent(searchTerm)}`;
 
         if (redeFiltro) {
           url += `&rede=${encodeURIComponent(redeFiltro)}`;

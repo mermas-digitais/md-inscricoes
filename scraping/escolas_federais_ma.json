@@ -1,0 +1,242 @@
+[
+  {
+    "nome": "Escola Caminho das Estrelas",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Alcântara-MA",
+    "scraped_at": "2025-09-29T15:19:46.794626"
+  },
+  {
+    "nome": "Ifma - Campus Acailandia",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Progresso, Açailândia-MA",
+    "scraped_at": "2025-09-29T15:19:46.794687"
+  },
+  {
+    "nome": "Ifma - Campus Alcantara",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Centro, Alcântara-MA",
+    "scraped_at": "2025-09-29T15:19:46.794726"
+  },
+  {
+    "nome": "Ifma - Campus Araioses",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Cumprida, Araioses-MA",
+    "scraped_at": "2025-09-29T15:19:46.794765"
+  },
+  {
+    "nome": "Ifma - Campus Avancado Carolina",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Centro, Carolina-MA",
+    "scraped_at": "2025-09-29T15:19:46.794806"
+  },
+  {
+    "nome": "Ifma - Campus Avancado Porto Franco",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Centro, Porto Franco-MA",
+    "scraped_at": "2025-09-29T15:19:46.794846"
+  },
+  {
+    "nome": "Ifma - Campus Avancado Rosario",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Sapucaia, Rosário-MA",
+    "scraped_at": "2025-09-29T15:19:46.794882"
+  },
+  {
+    "nome": "Ifma - Campus Bacabal",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Areal, Bacabal-MA",
+    "scraped_at": "2025-09-29T15:19:46.794919"
+  },
+  {
+    "nome": "Ifma - Campus Barra do Corda",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Nenzin, Barra do Corda-MA",
+    "scraped_at": "2025-09-29T15:19:46.794957"
+  },
+  {
+    "nome": "Ifma - Campus Barreirinhas",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Barreirinhas-MA",
+    "scraped_at": "2025-09-29T15:19:46.795013"
+  },
+  {
+    "nome": "Ifma - Campus Buriticupu",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Mansueto, Buriticupu-MA",
+    "scraped_at": "2025-09-29T15:19:46.795050"
+  },
+  {
+    "nome": "Ifma - Campus Caxias",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Centro, Caxias-MA",
+    "scraped_at": "2025-09-29T15:19:46.795085"
+  },
+  {
+    "nome": "Ifma - Campus Codo",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Zona Rural, Codó-MA",
+    "scraped_at": "2025-09-29T15:19:46.795123"
+  },
+  {
+    "nome": "Ifma - Campus Coelho Neto",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Olho Daguinha, Coelho Neto-MA",
+    "scraped_at": "2025-09-29T15:19:46.795159"
+  },
+  {
+    "nome": "Ifma - Campus Grajau",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Nova, Grajaú-MA",
+    "scraped_at": "2025-09-29T15:19:46.795192"
+  },
+  {
+    "nome": "Ifma - Campus Imperatriz",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Maria, Imperatriz-MA",
+    "scraped_at": "2025-09-29T15:19:46.795226"
+  },
+  {
+    "nome": "Ifma - Campus Itapecuru Mirim",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Centro, Itapecuru Mirim-MA",
+    "scraped_at": "2025-09-29T15:19:46.795260"
+  },
+  {
+    "nome": "Ifma - Campus Pedreiras",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Bairro do Diogo, Pedreiras-MA",
+    "scraped_at": "2025-09-29T15:19:46.795295"
+  },
+  {
+    "nome": "Ifma - Campus Pinheiro",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Enseada, Pinheiro-MA",
+    "scraped_at": "2025-09-29T15:19:46.795332"
+  },
+  {
+    "nome": "Ifma - Campus Presidente Dutra",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Pedra Branca, Presidente Dutra-MA",
+    "scraped_at": "2025-09-29T15:19:46.795368"
+  },
+  {
+    "nome": "Ifma - Campus Santa Ines",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Canaa, Santa Inês-MA",
+    "scraped_at": "2025-09-29T15:19:46.795403"
+  },
+  {
+    "nome": "Ifma - Campus São João dos Patos",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Santiago, São João dos Patos-MA",
+    "scraped_at": "2025-09-29T15:19:46.795437"
+  },
+  {
+    "nome": "Ifma - Campus São José de Ribamar",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Picarreira, São José de Ribamar-MA",
+    "scraped_at": "2025-09-29T15:19:46.795474"
+  },
+  {
+    "nome": "Ifma - Campus São Luis Centro Historico",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Centro, São Luís-MA",
+    "scraped_at": "2025-09-29T15:19:46.795529"
+  },
+  {
+    "nome": "Ifma - Campus São Luis Maracana",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Esperanca, São Luís-MA",
+    "scraped_at": "2025-09-29T15:19:46.795565"
+  },
+  {
+    "nome": "Ifma - Campus São Luis Monte Castelo",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Monte Castelo, São Luís-MA",
+    "scraped_at": "2025-09-29T15:19:46.795600"
+  },
+  {
+    "nome": "Ifma - Campus São Raimundo das Mangabeiras",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Zona Rural, São Raimundo das Mangabeiras-MA",
+    "scraped_at": "2025-09-29T15:19:46.795638"
+  },
+  {
+    "nome": "Ifma - Campus Timon",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Mutirao, Timon-MA",
+    "scraped_at": "2025-09-29T15:19:46.795672"
+  },
+  {
+    "nome": "Ifma - Campus Viana",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Povoado Sao Pedro, Viana-MA",
+    "scraped_at": "2025-09-29T15:19:46.795706"
+  },
+  {
+    "nome": "Ifma - Campus Ze Doca",
+    "rede": "federal",
+    "publica": true,
+    "uf": "MA",
+    "municipio": "Vila Amorim, Zé Doca-MA",
+    "scraped_at": "2025-09-29T15:19:46.795743"
+  }
+]

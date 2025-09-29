@@ -28,6 +28,15 @@ export interface DatabaseOperations {
   }): Promise<any>;
   findVerificationCode(email: string, code: string): Promise<any | null>;
   findVerificationCodeByCode(code: string): Promise<any | null>;
+
+  // Eventos MDX25
+  createOrientador(data: any): Promise<any>;
+  findOrientadorByCPF(cpf: string): Promise<any | null>;
+  findEventoByName(nome: string): Promise<any | null>;
+  findModalidadeByName(nome: string): Promise<any | null>;
+  createInscricaoEvento(data: any): Promise<any>;
+  createParticipanteEvento(data: any): Promise<any>;
+  findParticipanteEventoByCPF(cpf: string): Promise<any | null>;
   deleteVerificationCode(id: string): Promise<void>;
   deleteVerificationCodesByEmail(email: string): Promise<void>;
 
@@ -141,7 +150,7 @@ class PrismaDatabaseClient implements DatabaseOperations {
     });
   }
 
-  async findEscolas(search?: string, limit: number = 50) {
+  async findEscolas(search?: string, limit?: number) {
     const whereClause = search
       ? {
           nome: {
@@ -151,11 +160,17 @@ class PrismaDatabaseClient implements DatabaseOperations {
         }
       : {};
 
-    const escolas = await this.prisma.escolas.findMany({
+    const queryOptions: any = {
       where: whereClause,
-      take: limit,
       orderBy: { nome: "asc" },
-    });
+    };
+
+    // Só aplicar limite se especificado
+    if (limit !== undefined) {
+      queryOptions.take = limit;
+    }
+
+    const escolas = await this.prisma.escolas.findMany(queryOptions);
 
     // Transformar para o formato esperado
     return escolas.map((escola: any) => ({
@@ -379,20 +394,23 @@ class SupabaseDatabaseClient implements DatabaseOperations {
     if (error) throw error;
   }
 
-  async findEscolas(search?: string, limit: number = 50) {
+  async findEscolas(search?: string, limit?: number) {
     let query = this.supabase
       .from("escolas")
       .select("*")
-      .order("nome", { ascending: true })
-      .limit(limit);
+      .order("nome", { ascending: true });
 
     if (search) {
       query = this.supabase
         .from("escolas")
         .select("*")
         .ilike("nome", `%${search}%`)
-        .order("nome", { ascending: true })
-        .limit(limit);
+        .order("nome", { ascending: true });
+    }
+
+    // Só aplicar limite se especificado
+    if (limit !== undefined) {
+      query = query.limit(limit);
     }
 
     const { data, error } = await query;
@@ -502,6 +520,96 @@ class SupabaseDatabaseClient implements DatabaseOperations {
       return false;
     }
   }
+
+  // Métodos de eventos MDX25
+  async createOrientador(data: any) {
+    const { data: result, error } = await this.supabase
+      .from("orientadores")
+      .insert({
+        nome: data.nome,
+        cpf: data.cpf,
+        telefone: data.telefone,
+        email: data.email,
+        escola: data.escola,
+        genero: data.genero,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return result;
+  }
+
+  async findOrientadorByCPF(cpf: string) {
+    const { data, error } = await this.supabase
+      .from("orientadores")
+      .select("*")
+      .eq("cpf", cpf)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return data || null;
+  }
+
+  async findEventoByName(nome: string) {
+    const { data, error } = await this.supabase
+      .from("eventos")
+      .select("*")
+      .eq("nome", nome)
+      .eq("ativo", true)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return data || null;
+  }
+
+  async findModalidadeByName(nome: string) {
+    const { data, error } = await this.supabase
+      .from("modalidades")
+      .select("*")
+      .eq("nome", nome)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return data || null;
+  }
+
+  async createInscricaoEvento(data: any) {
+    const { data: result, error } = await this.supabase
+      .from("inscricoes_eventos")
+      .insert({
+        evento_id: data.eventoId,
+        modalidade_id: data.modalidadeId,
+        orientador_id: data.orientadorId,
+        nome_equipe: data.nomeEquipe,
+        status: data.status,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return result;
+  }
+
+  async createParticipanteEvento(data: any) {
+    const { data: result, error } = await this.supabase
+      .from("participantes_eventos")
+      .insert({
+        inscricao_id: data.inscricaoId,
+        nome: data.nome,
+        cpf: data.cpf,
+        data_nascimento: data.dataNascimento,
+        genero: data.genero,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return result;
+  }
 }
 
 /**
@@ -609,6 +717,31 @@ export class DatabaseClient {
 
   public async findParticipanteEventoByCPF(cpf: string) {
     return await this.operations.findParticipanteEventoByCPF(cpf);
+  }
+
+  // Métodos de eventos MDX25
+  public async createOrientador(data: any) {
+    return await this.operations.createOrientador(data);
+  }
+
+  public async findOrientadorByCPF(cpf: string) {
+    return await this.operations.findOrientadorByCPF(cpf);
+  }
+
+  public async findEventoByName(nome: string) {
+    return await this.operations.findEventoByName(nome);
+  }
+
+  public async findModalidadeByName(nome: string) {
+    return await this.operations.findModalidadeByName(nome);
+  }
+
+  public async createInscricaoEvento(data: any) {
+    return await this.operations.createInscricaoEvento(data);
+  }
+
+  public async createParticipanteEvento(data: any) {
+    return await this.operations.createParticipanteEvento(data);
   }
 
   public async query(tableName: string, options?: any) {

@@ -286,6 +286,18 @@ export class ApiClient {
   }
 
   /**
+   * Envia email de confirmação MDX25
+   */
+  async sendMDX25ConfirmationEmail(data: {
+    email: string;
+    nomeCompleto: string;
+    nomeCurso: string;
+    cpf: string;
+  }) {
+    return this.http.post("/api/mdx25/send-confirmation", data);
+  }
+
+  /**
    * Envia email de excedente
    */
   async sendExcedenteEmail(data: {

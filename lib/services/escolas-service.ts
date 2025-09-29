@@ -63,11 +63,14 @@ export class EscolasService {
     try {
       await this.initialize();
 
-      const { search, limit = 50, ...otherFilters } = filters;
+      const { search, limit, ...otherFilters } = filters;
+
+      // Lógica: se há busca, não limitar; se não há busca, limitar a 50
+      const effectiveLimit = search ? undefined : limit || 50;
 
       // Por enquanto, vamos usar dados mock
       // Em produção, você pode implementar uma tabela real de escolas
-      const escolas = await this.dbClient.findEscolas(search, limit);
+      const escolas = await this.dbClient.findEscolas(search, effectiveLimit);
 
       // Aplicar filtros adicionais se necessário
       let filteredEscolas = escolas;

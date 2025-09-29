@@ -30,10 +30,19 @@ import {
   Users,
   MapPin,
   Clock,
+  ChevronDown,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { z } from "zod";
+
+interface MembroEquipe {
+  id: string;
+  nome: string;
+  cpf: string;
+  data_nascimento: string;
+  genero: string;
+}
 
 interface FormData {
   email: string;
@@ -52,8 +61,9 @@ interface FormData {
   estado: string;
   nome_responsavel: string;
   telefone_whatsapp: string;
-  escolaridade: string;
-  ano_escolar: string;
+  modalidade: string;
+  nome_equipe: string;
+  membros_equipe: MembroEquipe[];
 }
 
 // Schemas de validação Zod para cada step
@@ -131,16 +141,29 @@ const step2Schema = z.object({
 });
 
 const step3Schema = z.object({
-  nome_responsavel: z
+  modalidade: z
     .string()
-    .min(2, "Nome do responsável deve ter pelo menos 2 caracteres"),
-  telefone_whatsapp: z.string().min(15, "Telefone deve estar completo"),
+    .min(1, "Modalidade é obrigatória")
+    .refine((val) => val === "jogos" || val === "robotica", {
+      message: "Selecione uma modalidade válida",
+    }),
+});
+
+const membroEquipeSchema = z.object({
+  nome: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  cpf: z.string().min(11, "CPF deve ter 11 dígitos"),
+  data_nascimento: z.string().min(1, "Data de nascimento é obrigatória"),
+  genero: z.string().min(1, "Gênero é obrigatório"),
 });
 
 const step4Schema = z.object({
-  escolaridade: z.string().min(1, "Escolaridade é obrigatória"),
-  ano_escolar: z.string().min(1, "Ano escolar é obrigatório"),
-  escola: z.string().min(2, "Nome da escola é obrigatório"),
+  nome_equipe: z
+    .string()
+    .min(2, "Nome da equipe deve ter pelo menos 2 caracteres"),
+  membros_equipe: z
+    .array(membroEquipeSchema)
+    .min(3, "Mínimo de 3 membros na equipe")
+    .max(5, "Máximo de 5 membros na equipe"),
 });
 
 function InscricaoMDX25Content() {
@@ -163,15 +186,31 @@ function InscricaoMDX25Content() {
     estado: "",
     nome_responsavel: "",
     telefone_whatsapp: "",
-    escolaridade: "",
-    ano_escolar: "",
+    modalidade: "",
+    nome_equipe: "",
+    membros_equipe: [
+      {
+        id: "1",
+        nome: "",
+        cpf: "",
+        data_nascimento: "",
+        genero: "",
+      },
+    ],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [generoConfirmado, setGeneroConfirmado] = useState(false);
   const [cpfExists, setCpfExists] = useState(false);
   const [aceitoRegulamentos, setAceitoRegulamentos] = useState(false);
+  const [membrosExpandidos, setMembrosExpandidos] = useState<Set<string>>(
+    new Set(["1"])
+  );
   const [cepNaoEncontrado, setCepNaoEncontrado] = useState(false);
+  const [cpfsEmOutrasEquipes, setCpfsEmOutrasEquipes] = useState<Set<string>>(
+    new Set()
+  );
+  const [isLoadingOrientador, setIsLoadingOrientador] = useState(false);
 
   // Variável de controle do countdown - pode ser controlada via env
   const [showCountdown] = useState(
@@ -216,14 +255,12 @@ function InscricaoMDX25Content() {
   });
 
   const step3Form = useZodForm(step3Schema, {
-    nome_responsavel: formData.nome_responsavel,
-    telefone_whatsapp: formData.telefone_whatsapp,
+    modalidade: formData.modalidade,
   });
 
   const step4Form = useZodForm(step4Schema, {
-    escolaridade: formData.escolaridade,
-    ano_escolar: formData.ano_escolar,
-    escola: formData.escola,
+    nome_equipe: formData.nome_equipe,
+    membros_equipe: formData.membros_equipe,
   });
 
   // Sincronizar os dados do form quando o formData mudar
@@ -260,23 +297,13 @@ function InscricaoMDX25Content() {
   ]);
 
   useEffect(() => {
-    step3Form.setFieldValue(
-      "nome_responsavel",
-      formData.nome_responsavel,
-      false
-    );
-    step3Form.setFieldValue(
-      "telefone_whatsapp",
-      formData.telefone_whatsapp,
-      false
-    );
-  }, [formData.nome_responsavel, formData.telefone_whatsapp]);
+    step3Form.setFieldValue("modalidade", formData.modalidade, false);
+  }, [formData.modalidade]);
 
   useEffect(() => {
-    step4Form.setFieldValue("escolaridade", formData.escolaridade, false);
-    step4Form.setFieldValue("ano_escolar", formData.ano_escolar, false);
-    step4Form.setFieldValue("escola", formData.escola, false);
-  }, [formData.escolaridade, formData.ano_escolar, formData.escola]);
+    step4Form.setFieldValue("nome_equipe", formData.nome_equipe, false);
+    step4Form.setFieldValue("membros_equipe", formData.membros_equipe, false);
+  }, [formData.nome_equipe, formData.membros_equipe]);
 
   // Revalidar quando o schema mudar (cpfExists)
   useEffect(() => {
@@ -410,6 +437,19 @@ function InscricaoMDX25Content() {
 
     setFormData((prev) => ({ ...prev, [field]: value }));
 
+    // Se for CPF do orientador e estiver no Step 2, buscar dados do orientador
+    if (
+      field === "cpf" &&
+      currentStep === 2 &&
+      value.replace(/\D/g, "").length === 11
+    ) {
+      console.log(
+        "Chamando busca do orientador para CPF:",
+        value.replace(/\D/g, "")
+      );
+      await buscarOrientadorPorCPF(value.replace(/\D/g, ""));
+    }
+
     // Atualizar os forms Zod correspondentes
     if (["nome", "cpf", "telefone", "escola", "genero"].includes(field)) {
       step1Form.setFieldValue(
@@ -439,18 +479,6 @@ function InscricaoMDX25Content() {
         value,
         true
       );
-    } else if (["escolaridade", "ano_escolar"].includes(field)) {
-      step4Form.setFieldValue(
-        field as keyof typeof step4Schema.shape,
-        value,
-        true
-      );
-    }
-
-    // Reset ano_escolar when escolaridade changes
-    if (field === "escolaridade") {
-      setFormData((prev) => ({ ...prev, ano_escolar: "" }));
-      step4Form.setFieldValue("ano_escolar", "", false);
     }
   };
 
@@ -469,15 +497,6 @@ function InscricaoMDX25Content() {
       step2Form.setFieldValue("cidade", "", false);
       step2Form.setFieldValue("estado", "", false);
     }
-  };
-
-  const getAnoEscolarOptions = () => {
-    if (formData.escolaridade === "Ensino Fundamental 2") {
-      return ["6º ano", "7º ano", "8º ano", "9º ano"];
-    } else if (formData.escolaridade === "Ensino Médio") {
-      return ["1º ano", "2º ano", "3º ano"];
-    }
-    return [];
   };
 
   const handleSubmit = async () => {
@@ -511,6 +530,231 @@ function InscricaoMDX25Content() {
     }
   };
 
+  // Funções para gerenciar membros da equipe
+  const adicionarMembro = () => {
+    if (formData.membros_equipe.length < 5) {
+      const novoId = (formData.membros_equipe.length + 1).toString();
+      const novoMembro: MembroEquipe = {
+        id: novoId,
+        nome: "",
+        cpf: "",
+        data_nascimento: "",
+        genero: "",
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        membros_equipe: [...prev.membros_equipe, novoMembro],
+      }));
+
+      // Expandir o novo membro e recolher os outros
+      setMembrosExpandidos(new Set([novoId]));
+    }
+  };
+
+  const removerMembro = (id: string) => {
+    if (formData.membros_equipe.length > 1) {
+      setFormData((prev) => ({
+        ...prev,
+        membros_equipe: prev.membros_equipe.filter(
+          (membro) => membro.id !== id
+        ),
+      }));
+
+      // Se o membro removido estava expandido, expandir o primeiro membro restante
+      if (membrosExpandidos.has(id)) {
+        const membrosRestantes = formData.membros_equipe.filter(
+          (membro) => membro.id !== id
+        );
+        if (membrosRestantes.length > 0) {
+          setMembrosExpandidos(new Set([membrosRestantes[0].id]));
+        }
+      }
+    }
+  };
+
+  const toggleMembro = (id: string) => {
+    setMembrosExpandidos((prev) => {
+      const novo = new Set(prev);
+      if (novo.has(id)) {
+        novo.delete(id);
+      } else {
+        novo.clear();
+        novo.add(id);
+      }
+      return novo;
+    });
+  };
+
+  const atualizarMembro = async (
+    id: string,
+    campo: keyof MembroEquipe,
+    valor: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      membros_equipe: prev.membros_equipe.map((membro) =>
+        membro.id === id ? { ...membro, [campo]: valor } : membro
+      ),
+    }));
+
+    // Se o campo é CPF e tem 11 dígitos, verificar se já está sendo usado em outra equipe
+    if (campo === "cpf" && valor.length === 11) {
+      const existeEmOutraEquipe = await verificarCpfEmOutrasEquipes(valor);
+      if (existeEmOutraEquipe) {
+        setCpfsEmOutrasEquipes((prev) => new Set(prev).add(valor));
+      } else {
+        setCpfsEmOutrasEquipes((prev) => {
+          const novo = new Set(prev);
+          novo.delete(valor);
+          return novo;
+        });
+      }
+    }
+  };
+
+  // Função para verificar se CPF já está sendo usado em outra equipe
+  const verificarCpfEmOutrasEquipes = async (cpf: string) => {
+    if (!cpf || cpf.length < 11) return false;
+
+    try {
+      const response = await fetch("/api/mdx25/verificar-cpf-membro", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cpf }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.existe; // true se o CPF já está sendo usado em outra equipe
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Erro ao verificar CPF:", error);
+      return false;
+    }
+  };
+
+  // Função para buscar orientador pelo CPF e preencher campos
+  const buscarOrientadorPorCPF = async (cpf: string) => {
+    if (cpf.length !== 11) return;
+
+    console.log("Buscando orientador com CPF:", cpf);
+    setIsLoadingOrientador(true);
+    try {
+      const response = await fetch("/api/mdx25/buscar-orientador", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf }),
+      });
+
+      console.log("Response status:", response.status);
+
+      if (response.ok) {
+        const orientador = await response.json();
+        console.log("Orientador encontrado:", orientador);
+
+        if (orientador) {
+          // Preencher campos automaticamente
+          setFormData((prev) => {
+            const newData = {
+              ...prev,
+              nome: orientador.nome || prev.nome,
+              telefone: orientador.telefone || prev.telefone,
+              email: orientador.email || prev.email,
+              escola: orientador.escola || prev.escola,
+              genero: orientador.genero || prev.genero,
+            };
+            console.log("Novos dados do form:", newData);
+            return newData;
+          });
+        } else {
+          console.log("Nenhum orientador encontrado para este CPF");
+        }
+      } else {
+        console.error("Erro na resposta da API:", response.status);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar orientador:", error);
+    } finally {
+      setIsLoadingOrientador(false);
+    }
+  };
+
+  // Função para validar CPF único
+  const validarCpfUnico = (cpf: string, membroId?: string) => {
+    if (!cpf) return true; // CPF vazio é válido temporariamente
+
+    // Verificar se o CPF é igual ao do orientador (mesmo que incompleto)
+    if (cpf === formData.cpf) {
+      return false;
+    }
+
+    // Se o CPF tem menos de 11 dígitos, só verifica se é igual ao orientador
+    if (cpf.length < 11) {
+      return cpf !== formData.cpf;
+    }
+
+    // Verificar se o CPF já existe em outros membros da equipe
+    const outrosMembros = formData.membros_equipe.filter(
+      (membro) => membro.id !== membroId && membro.cpf === cpf
+    );
+
+    return outrosMembros.length === 0;
+  };
+
+  // Função para obter mensagem de erro do CPF
+  const getCpfErrorMessage = (cpf: string, membroId?: string) => {
+    if (!cpf) return "";
+
+    // Verificar se o CPF é igual ao do orientador (mesmo que incompleto)
+    if (cpf === formData.cpf) {
+      return "Este CPF já está sendo usado pelo orientador";
+    }
+
+    // Se o CPF tem menos de 11 dígitos, só verifica se é igual ao orientador
+    if (cpf.length < 11) {
+      return cpf === formData.cpf
+        ? "Este CPF já está sendo usado pelo orientador"
+        : "";
+    }
+
+    // Verificar se o CPF já existe em outros membros da equipe
+    const outrosMembros = formData.membros_equipe.filter(
+      (membro) => membro.id !== membroId && membro.cpf === cpf
+    );
+
+    if (outrosMembros.length > 0) {
+      return "Este CPF já está sendo usado por outro membro da equipe";
+    }
+
+    // Verificar se o CPF já está sendo usado em outra equipe
+    if (cpfsEmOutrasEquipes.has(cpf)) {
+      return "Este CPF já está sendo usado em outra equipe";
+    }
+
+    return "";
+  };
+
+  // Função para formatar CPF
+  const formatarCpf = (cpf: string) => {
+    const numeros = cpf.replace(/\D/g, "");
+    if (numeros.length <= 3) return numeros;
+    if (numeros.length <= 6)
+      return `${numeros.slice(0, 3)}.${numeros.slice(3)}`;
+    if (numeros.length <= 9)
+      return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(
+        6
+      )}`;
+    return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(
+      6,
+      9
+    )}-${numeros.slice(9, 11)}`;
+  };
+
   const isStepValid = (step: number) => {
     switch (step) {
       case 1:
@@ -525,15 +769,26 @@ function InscricaoMDX25Content() {
           formData.genero
         );
       case 3:
-        return step2Form.formState.isValid;
+        return (
+          formData.modalidade &&
+          (formData.modalidade === "jogos" ||
+            formData.modalidade === "robotica")
+        );
       case 4:
-        return step3Form.formState.isValid;
-      case 5:
-        return step4Form.formState.isValid;
-      case 6:
-        return true;
-      case 7:
-        return true;
+        return (
+          formData.nome_equipe &&
+          formData.membros_equipe.length >= 3 &&
+          formData.membros_equipe.length <= 5 &&
+          formData.membros_equipe.every(
+            (membro) =>
+              membro.nome &&
+              membro.cpf &&
+              membro.data_nascimento &&
+              membro.genero &&
+              validarCpfUnico(membro.cpf, membro.id) &&
+              !cpfsEmOutrasEquipes.has(membro.cpf)
+          )
+        );
       default:
         return false;
     }
@@ -653,7 +908,7 @@ function InscricaoMDX25Content() {
                     MDX25 - FORMULÁRIO DE INSCRIÇÃO
                   </div>
                   <p className="text-gray-600 mt-2 text-sm font-poppins">
-                    PASSO {currentStep} DE 7
+                    PASSO {currentStep} DE 4
                   </p>
                 </div>
 
@@ -757,6 +1012,31 @@ function InscricaoMDX25Content() {
                       <CardContent className="space-y-4">
                         <CustomInput
                           type="text"
+                          value={formatarCpf(formData.cpf)}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "cpf",
+                              e.target.value.replace(/\D/g, "")
+                            )
+                          }
+                          placeholder="000.000.000-00"
+                          label="CPF"
+                          maxLength={14}
+                          isRequired
+                          disabled={isLoadingOrientador}
+                          error={
+                            step1Form.formState.touched.cpf
+                              ? step1Form.formState.errors.cpf
+                              : undefined
+                          }
+                        />
+                        {isLoadingOrientador && (
+                          <div className="text-sm text-gray-500 text-center">
+                            Buscando dados do orientador...
+                          </div>
+                        )}
+                        <CustomInput
+                          type="text"
                           value={formData.nome}
                           onChange={(e) =>
                             handleInputChange("nome", e.target.value)
@@ -767,22 +1047,6 @@ function InscricaoMDX25Content() {
                           error={
                             step1Form.formState.touched.nome
                               ? step1Form.formState.errors.nome
-                              : undefined
-                          }
-                        />
-                        <CustomInput
-                          type="text"
-                          value={formData.cpf}
-                          onChange={(e) =>
-                            handleInputChange("cpf", e.target.value)
-                          }
-                          placeholder="000.000.000-00"
-                          label="CPF"
-                          maxLength={14}
-                          isRequired
-                          error={
-                            step1Form.formState.touched.cpf
-                              ? step1Form.formState.errors.cpf
                               : undefined
                           }
                         />
@@ -835,6 +1099,407 @@ function InscricaoMDX25Content() {
                     </Card>
                   )}
 
+                  {/* Step 3: Seleção de Modalidade */}
+                  {currentStep === 3 && (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <CardTitle className="text-sm font-semibold text-[#FF4A97] tracking-wider mb-2 text-left font-poppins">
+                              ESCOLHA A MODALIDADE
+                            </CardTitle>
+                            <CardDescription className="text-3xl md:text-3xl font-extrabold text-[#6C2EB5] leading-7 mb-4 text-left font-poppins">
+                              Qual modalidade que você vai participar?
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="space-y-4">
+                          {/* Opção JOGOS */}
+                          <div
+                            className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                              formData.modalidade === "jogos"
+                                ? "border-[#FF4A97] bg-gradient-to-r from-[#FF4A97]/10 to-[#C769E3]/10 shadow-lg"
+                                : "border-gray-200 bg-white hover:border-[#FF4A97]/50 hover:shadow-md"
+                            }`}
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                modalidade: "jogos",
+                              }));
+                              step3Form.setFieldValue("modalidade", "jogos");
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                    formData.modalidade === "jogos"
+                                      ? "border-[#FF4A97] bg-[#FF4A97]"
+                                      : "border-gray-300"
+                                  }`}
+                                >
+                                  {formData.modalidade === "jogos" && (
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                  )}
+                                </div>
+                                <div>
+                                  <h3 className="text-xl font-bold text-[#6C2EB5] font-poppins">
+                                    JOGOS
+                                  </h3>
+                                  <p className="text-sm text-gray-600 font-poppins">
+                                    Mostra de Jogos Mermãs Digitais
+                                  </p>
+                                </div>
+                              </div>
+                              {formData.modalidade === "jogos" && (
+                                <div className="w-6 h-6 bg-[#FF4A97] rounded-full flex items-center justify-center">
+                                  <svg
+                                    className="w-4 h-4 text-white"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Opção ROBÓTICA */}
+                          <div
+                            className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                              formData.modalidade === "robotica"
+                                ? "border-[#FF4A97] bg-gradient-to-r from-[#FF4A97]/10 to-[#C769E3]/10 shadow-lg"
+                                : "border-gray-200 bg-white hover:border-[#FF4A97]/50 hover:shadow-md"
+                            }`}
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                modalidade: "robotica",
+                              }));
+                              step3Form.setFieldValue("modalidade", "robotica");
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                    formData.modalidade === "robotica"
+                                      ? "border-[#FF4A97] bg-[#FF4A97]"
+                                      : "border-gray-300"
+                                  }`}
+                                >
+                                  {formData.modalidade === "robotica" && (
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                  )}
+                                </div>
+                                <div>
+                                  <h3 className="text-xl font-bold text-[#6C2EB5] font-poppins">
+                                    ROBÓTICA
+                                  </h3>
+                                  <p className="text-sm text-gray-600 font-poppins">
+                                    2º Desafio de robótica Mermãs Digitais
+                                  </p>
+                                </div>
+                              </div>
+                              {formData.modalidade === "robotica" && (
+                                <div className="w-6 h-6 bg-[#FF4A97] rounded-full flex items-center justify-center">
+                                  <svg
+                                    className="w-4 h-4 text-white"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mensagem de erro */}
+                        {step3Form.formState.touched.modalidade &&
+                          step3Form.formState.errors.modalidade && (
+                            <p className="text-red-500 text-sm mt-1 font-poppins">
+                              {step3Form.formState.errors.modalidade}
+                            </p>
+                          )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Step 4: Membros da Equipe */}
+                  {currentStep === 4 && (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <CardTitle className="text-sm font-semibold text-[#FF4A97] tracking-wider mb-2 text-left font-poppins">
+                              SOBRE A EQUIPE
+                            </CardTitle>
+                            <CardDescription className="text-3xl md:text-3xl font-extrabold text-[#6C2EB5] leading-7 mb-4 text-left font-poppins">
+                              Conte um pouco sobre a sua equipe
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* Campo Nome da Equipe ou Jogo */}
+                        <div className="space-y-2">
+                          <CustomInput
+                            type="text"
+                            label="Nome da Equipe ou Jogo*"
+                            value={formData.nome_equipe}
+                            onChange={(e) => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                nome_equipe: e.target.value,
+                              }));
+                              step4Form.setFieldValue(
+                                "nome_equipe",
+                                e.target.value
+                              );
+                            }}
+                            placeholder="Digite o nome da equipe ou jogo"
+                            required
+                          />
+                          {step4Form.formState.touched.nome_equipe &&
+                            step4Form.formState.errors.nome_equipe && (
+                              <p className="text-red-500 text-sm mt-1 font-poppins">
+                                {step4Form.formState.errors.nome_equipe}
+                              </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {formData.membros_equipe.map((membro, index) => {
+                            const isExpanded = membrosExpandidos.has(membro.id);
+                            const isFirst = index === 0;
+
+                            return (
+                              <div
+                                key={membro.id}
+                                className="border border-gray-200 rounded-xl"
+                              >
+                                {/* Header do membro */}
+                                <div
+                                  className={`p-4 cursor-pointer transition-all duration-300 ${
+                                    isExpanded
+                                      ? "bg-gradient-to-r from-[#FF4A97]/10 to-[#C769E3]/10 border-b border-gray-200"
+                                      : "bg-white hover:bg-gray-50"
+                                  }`}
+                                  onClick={() => toggleMembro(membro.id)}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 bg-[#FF4A97] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                        {index + 1}
+                                      </div>
+                                      <div>
+                                        <h3 className="font-semibold text-[#6C2EB5] font-poppins">
+                                          {membro.nome || `Membro ${index + 1}`}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 font-poppins">
+                                          {membro.cpf
+                                            ? `CPF: ${formatarCpf(membro.cpf)}`
+                                            : "CPF não informado"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {formData.membros_equipe.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            removerMembro(membro.id);
+                                          }}
+                                          className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200"
+                                        >
+                                          <svg
+                                            className="w-4 h-4"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                        </button>
+                                      )}
+                                      <ChevronDown
+                                        className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
+                                          isExpanded ? "rotate-180" : ""
+                                        }`}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Formulário do membro */}
+                                {isExpanded && (
+                                  <div className="p-6 bg-white space-y-4">
+                                    <CustomInput
+                                      type="text"
+                                      label="Nome completo*"
+                                      value={membro.nome}
+                                      onChange={(e) =>
+                                        atualizarMembro(
+                                          membro.id,
+                                          "nome",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="Digite o nome completo"
+                                      required
+                                    />
+
+                                    <div>
+                                      <CustomInput
+                                        type="text"
+                                        label="CPF*"
+                                        value={formatarCpf(membro.cpf)}
+                                        onChange={(e) => {
+                                          const valor = e.target.value.replace(
+                                            /\D/g,
+                                            ""
+                                          );
+                                          if (valor.length <= 11) {
+                                            atualizarMembro(
+                                              membro.id,
+                                              "cpf",
+                                              valor
+                                            );
+                                          }
+                                        }}
+                                        placeholder="000.000.000-00"
+                                        required
+                                      />
+                                      {membro.cpf &&
+                                        getCpfErrorMessage(
+                                          membro.cpf,
+                                          membro.id
+                                        ) && (
+                                          <p className="text-red-500 text-sm mt-1 font-poppins">
+                                            {getCpfErrorMessage(
+                                              membro.cpf,
+                                              membro.id
+                                            )}
+                                          </p>
+                                        )}
+                                    </div>
+
+                                    <CustomInput
+                                      type="date"
+                                      label="Data de nascimento*"
+                                      value={membro.data_nascimento}
+                                      onChange={(e) =>
+                                        atualizarMembro(
+                                          membro.id,
+                                          "data_nascimento",
+                                          e.target.value
+                                        )
+                                      }
+                                      required
+                                    />
+
+                                    <div className="pb-4">
+                                      <GeneroSelector
+                                        placeholder="Selecione o gênero"
+                                        value={membro.genero}
+                                        onChange={(valor) =>
+                                          atualizarMembro(
+                                            membro.id,
+                                            "genero",
+                                            valor
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* Botão para adicionar membro */}
+                          {formData.membros_equipe.length < 5 && (
+                            <button
+                              type="button"
+                              onClick={adicionarMembro}
+                              className="w-full p-4 border-2 border-dashed border-[#FF4A97] rounded-xl hover:border-[#C769E3] hover:bg-gradient-to-r hover:from-[#FF4A97]/5 hover:to-[#C769E3]/5 transition-all duration-300 group"
+                            >
+                              <div className="flex items-center justify-center gap-3">
+                                <div className="w-8 h-8 bg-[#FF4A97] rounded-full flex items-center justify-center text-white group-hover:bg-[#C769E3] transition-colors duration-200">
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                                <span className="text-[#6C2EB5] font-semibold font-poppins">
+                                  Adicionar membro da equipe
+                                </span>
+                              </div>
+                            </button>
+                          )}
+
+                          {/* Informações sobre limites */}
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-sm text-blue-800 font-poppins">
+                                  <strong>Mínimo:</strong> 3 membros •{" "}
+                                  <strong>Máximo:</strong> 5 membros
+                                </p>
+                                <p className="text-xs text-blue-600 mt-1 font-poppins"></p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mensagem de erro */}
+                        {step4Form.formState.touched.membros_equipe &&
+                          step4Form.formState.errors.membros_equipe && (
+                            <p className="text-red-500 text-sm mt-1 font-poppins">
+                              {step4Form.formState.errors.membros_equipe}
+                            </p>
+                          )}
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Steps 2-5 continuam com a mesma estrutura... */}
                   {/* Por brevidade, vou incluir apenas o Step 1 completo */}
                   {/* Os outros steps seguem o mesmo padrão do arquivo original */}
@@ -859,7 +1524,7 @@ function InscricaoMDX25Content() {
                       >
                         Enviar
                       </CustomButton>
-                    ) : currentStep < 6 ? (
+                    ) : currentStep < 4 ? (
                       <CustomButton
                         type="button"
                         onClick={() => setCurrentStep(currentStep + 1)}

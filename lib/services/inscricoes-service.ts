@@ -105,11 +105,18 @@ export class InscricoesService {
       const status = count >= LIMITE_VAGAS ? "EXCEDENTE" : "INSCRITA";
 
       // Criar inscrição
-      const inscricao = await this.dbClient.createInscricao({
-        ...data,
-        curso,
-        status,
-      });
+      let inscricao;
+      if (isMDX25) {
+        // Para MDX25, usar lógica específica de eventos
+        inscricao = await this.createMDX25Inscricao(data, curso, status);
+      } else {
+        // Para inscrições normais, usar a tabela inscricoes
+        inscricao = await this.dbClient.createInscricao({
+          ...data,
+          curso,
+          status,
+        });
+      }
 
       // Enviar email apropriado baseado no status
       await this.sendEmail(data, curso, status, isMDX25);
@@ -128,6 +135,66 @@ export class InscricoesService {
         error:
           error instanceof Error ? error.message : "Erro interno do servidor",
       };
+    }
+  }
+
+  /**
+   * Cria inscrição específica para MDX25
+   */
+  private async createMDX25Inscricao(data: any, curso: string, status: string) {
+    try {
+      // 1. Buscar orientador existente ou criar novo
+      let orientador = await this.dbClient.findOrientadorByCPF(data.cpf);
+
+      if (!orientador) {
+        orientador = await this.dbClient.createOrientador({
+          nome: data.nome,
+          cpf: data.cpf,
+          telefone: data.telefone,
+          email: data.email,
+          escola: data.escola,
+          genero: data.genero,
+        });
+      }
+
+      // 2. Buscar evento MDX25
+      const evento = await this.dbClient.findEventoByName("MDX25");
+      if (!evento) {
+        throw new Error("Evento MDX25 não encontrado");
+      }
+
+      // 3. Buscar modalidade (jogos ou robótica)
+      const modalidade = await this.dbClient.findModalidadeByName(
+        data.modalidade === "jogos" ? "JOGOS" : "ROBOTICA"
+      );
+      if (!modalidade) {
+        throw new Error(`Modalidade ${data.modalidade} não encontrada`);
+      }
+
+      // 4. Criar inscrição no evento
+      const inscricaoEvento = await this.dbClient.createInscricaoEvento({
+        eventoId: evento.id,
+        modalidadeId: modalidade.id,
+        orientadorId: orientador.id,
+        nomeEquipe: data.nome_equipe,
+        status: status,
+      });
+
+      // 5. Criar participantes (membros da equipe)
+      for (const membro of data.membros_equipe) {
+        await this.dbClient.createParticipanteEvento({
+          inscricaoId: inscricaoEvento.id,
+          nome: membro.nome,
+          cpf: membro.cpf,
+          dataNascimento: membro.data_nascimento,
+          genero: membro.genero,
+        });
+      }
+
+      return inscricaoEvento;
+    } catch (error) {
+      console.error("Erro ao criar inscrição MDX25:", error);
+      throw error;
     }
   }
 
@@ -248,6 +315,10 @@ export class InscricoesService {
       let emailResponse;
       if (status === "EXCEDENTE") {
         emailResponse = await this.apiClient.sendExcedenteEmail(emailData);
+      } else if (isMDX25) {
+        emailResponse = await this.apiClient.sendMDX25ConfirmationEmail(
+          emailData
+        );
       } else {
         emailResponse = await this.apiClient.sendConfirmationEmail(emailData);
       }
