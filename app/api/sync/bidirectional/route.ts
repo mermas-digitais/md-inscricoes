@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { dbManager } from "@/lib/database-manager";
 import { createClient } from "@supabase/supabase-js";
-import { PrismaClient } from "../../../../lib/generated/prisma";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-
-const prisma = new PrismaClient();
 
 // Todas as tabelas existem em ambos os bancos agora
 const COMMON_TABLES = [
@@ -101,12 +99,13 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    // DatabaseManager handles disconnection automatically
   }
 }
 
 async function syncTableBidirectional(tableName: string): Promise<SyncResult> {
   // Buscar dados de ambos os bancos
+  const prisma = dbManager.getPrisma();
   const [localData, supabaseData] = await Promise.all([
     (prisma as any)[tableName].findMany({ orderBy: { id: "asc" } }),
     supabase.from(tableName).select("*").order("id", { ascending: true }),

@@ -1,11 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getDatabaseClient } from "@/lib/clients";
 import { requireAuth } from "@/lib/auth";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,26 +66,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir curso no banco
-    const { data, error } = await supabase
-      .from("cursos")
-      .insert({
-        nome_curso: nome_curso.trim(),
-        descricao: descricao?.trim() || null,
-        carga_horaria: carga_horaria || null,
-        publico_alvo: publico_alvo || null,
-        status: status || "ativo",
-        projeto: projeto || "Mermãs Digitais",
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Erro ao criar curso" },
-        { status: 500 }
-      );
-    }
+    const dbClient = await getDatabaseClient();
+    const data = await dbClient.create("cursos", {
+      nome_curso: nome_curso.trim(),
+      descricao: descricao?.trim() || null,
+      carga_horaria: carga_horaria || null,
+      publico_alvo: publico_alvo || null,
+      status: status || "ativo",
+      projeto: projeto || "Mermãs Digitais",
+    });
 
     return NextResponse.json({
       success: true,
@@ -113,18 +97,10 @@ export async function GET(request: NextRequest) {
     if (authError) return authError;
 
     // Buscar todos os cursos
-    const { data: cursos, error } = await supabase
-      .from("cursos")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Database error:", error);
-      return NextResponse.json(
-        { error: "Erro ao buscar cursos" },
-        { status: 500 }
-      );
-    }
+    const dbClient = await getDatabaseClient();
+    const cursos = await dbClient.query("cursos", {
+      orderBy: { created_at: "desc" },
+    });
 
     return NextResponse.json({
       success: true,

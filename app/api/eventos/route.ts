@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDatabaseClient } from "@/lib/clients";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const ativo = searchParams.get("ativo");
     const limit = parseInt(searchParams.get("limit") || "50");
+
+    const dbClient = await getDatabaseClient();
 
     // Construir filtros
     const where: any = {};
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar eventos com modalidades
-    const eventos = await prisma.eventos.findMany({
+    const eventos = await dbClient.query("eventos", {
       where,
       include: {
         modalidades: {

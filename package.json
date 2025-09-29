@@ -20,7 +20,12 @@
     "sync:to-supabase": "node scripts/sync-databases.js to-supabase",
     "sync:from-supabase": "node scripts/sync-databases.js from-supabase",
     "sync:bidirectional": "node scripts/sync-databases.js bidirectional",
-    "sync:full": "node scripts/sync-databases.js bidirectional"
+    "sync:full": "node scripts/sync-databases.js bidirectional",
+    "db:test-flexible": "node scripts/test-flexible-database.js",
+    "db:status-api": "tsx -e \"fetch('http://localhost:3000/api/database-status').then(r => r.json()).then(console.log)\"",
+    "test:abstract-clients": "node scripts/test-abstract-clients.js",
+    "test:migrated-routes": "node scripts/test-migrated-routes.js",
+    "test:final-structure": "node scripts/test-final-api-structure.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

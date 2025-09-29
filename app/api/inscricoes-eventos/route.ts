@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDatabaseClient } from "@/lib/clients";
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     const orientadorId = searchParams.get("orientadorId");
     const status = searchParams.get("status");
     const limit = parseInt(searchParams.get("limit") || "50");
+
+    const dbClient = await getDatabaseClient();
 
     // Construir filtros
     const where: any = {};
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar inscrições
-    const inscricoes = await prisma.inscricoesEventos.findMany({
+    const inscricoes = await dbClient.query("inscricoesEventos", {
       where,
       include: {
         evento: {

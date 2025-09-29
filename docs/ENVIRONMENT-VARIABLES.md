@@ -6,18 +6,29 @@ Este documento descreve todas as variáveis de ambiente utilizadas no sistema Me
 
 ## 🔐 Variáveis Obrigatórias
 
-### Banco de Dados Supabase (Sistema Principal)
+### Configuração de Banco de Dados (Flexível)
 
 ```bash
+# Modo do banco: "local" (Docker), "supabase" (nuvem), "auto" (detecta automaticamente)
+DATABASE_MODE=auto
+
+# Banco de Dados Local (PostgreSQL via Docker)
+DATABASE_URL="postgresql://postgres:mermas123@localhost:5432/mermas_digitais_db"
+
+# Banco de Dados Supabase (Nuvem)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+
+# Configurações de Fallback (Opcional)
+DATABASE_FALLBACK=true
+DATABASE_PRIMARY=prisma
 ```
 
-### Banco de Dados PostgreSQL Local (Prisma)
+### Modos de Configuração
 
-```bash
-DATABASE_URL="postgresql://postgres:mermas123@localhost:5432/mermas_digitais_db"
-```
+- **`DATABASE_MODE=local`**: Força uso do banco local (Docker)
+- **`DATABASE_MODE=supabase`**: Força uso do Supabase
+- **`DATABASE_MODE=auto`**: Detecta automaticamente qual banco usar (padrão)
 
 ### Configurações de Email
 
@@ -69,15 +80,21 @@ NODE_ENV=development
 # ===============================================
 
 # ===============================================
-# BANCO DE DADOS SUPABASE (SISTEMA PRINCIPAL)
+# CONFIGURAÇÃO FLEXÍVEL DE BANCO DE DADOS
 # ===============================================
+# Modo: "local" (Docker), "supabase" (nuvem), "auto" (detecta automaticamente)
+DATABASE_MODE=auto
+
+# Banco Local (PostgreSQL via Docker)
+DATABASE_URL="postgresql://postgres:mermas123@localhost:5432/mermas_digitais_db"
+
+# Banco Supabase (Nuvem)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 
-# ===============================================
-# BANCO DE DADOS POSTGRESQL LOCAL (PRISMA)
-# ===============================================
-DATABASE_URL="postgresql://postgres:mermas123@localhost:5432/mermas_digitais_db"
+# Configurações de Fallback (Opcional)
+DATABASE_FALLBACK=true
+DATABASE_PRIMARY=prisma
 
 # ===============================================
 # CONFIGURAÇÕES DE EMAIL
@@ -112,16 +129,60 @@ NODE_ENV=development
    cp .env.example .env
    ```
 
-2. **Edite as variáveis:**
+2. **Configure o modo de banco:**
+
+   ```bash
+   # Para usar apenas banco local (Docker)
+   DATABASE_MODE=local
+
+   # Para usar apenas Supabase
+   DATABASE_MODE=supabase
+
+   # Para detecção automática (recomendado)
+   DATABASE_MODE=auto
+   ```
+
+3. **Edite as variáveis:**
 
    - Substitua os valores placeholder pelos valores reais
    - Configure as credenciais do Supabase
    - Configure as credenciais do email SMTP
 
-3. **Reinicie o servidor:**
+4. **Reinicie o servidor:**
    ```bash
    yarn dev
    ```
+
+## 🔄 Sistema Flexível de Banco
+
+### Como Funciona
+
+O sistema detecta automaticamente qual banco usar baseado na configuração:
+
+- **Modo `auto`**: Tenta Supabase primeiro, se não disponível usa banco local
+- **Modo `local`**: Força uso do banco local (Docker)
+- **Modo `supabase`**: Força uso do Supabase
+
+### Verificar Status
+
+```bash
+# Verificar status do banco
+curl http://localhost:3000/api/database-status
+
+# Testar conexão
+curl -X POST http://localhost:3000/api/database-status \
+  -H "Content-Type: application/json" \
+  -d '{"action": "test"}'
+
+# Forçar reconexão
+curl -X POST http://localhost:3000/api/database-status \
+  -H "Content-Type: application/json" \
+  -d '{"action": "reconnect"}'
+```
+
+### Fallback Automático
+
+Se `DATABASE_FALLBACK=true`, o sistema automaticamente tenta o banco alternativo em caso de erro.
 
 ## 🔍 Verificação
 

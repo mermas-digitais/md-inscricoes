@@ -63,10 +63,10 @@ export default function EscolaSelector({
       try {
         const redeFiltro = getRedeEscolaFiltro(escolaridade);
         const url = redeFiltro
-          ? `/api/escolas-prisma?rede=${encodeURIComponent(
+          ? `/api/escolas?rede=${encodeURIComponent(
               redeFiltro
             )}&limit=50`
-          : `/api/escolas-prisma?limit=50`;
+          : `/api/escolas?limit=50`;
 
         const response = await fetch(url);
 
@@ -95,10 +95,10 @@ export default function EscolaSelector({
         if (escolaridade) {
           const redeFiltro = getRedeEscolaFiltro(escolaridade);
           const url = redeFiltro
-            ? `/api/escolas-prisma?rede=${encodeURIComponent(
+            ? `/api/escolas?rede=${encodeURIComponent(
                 redeFiltro
               )}&limit=50`
-            : `/api/escolas-prisma?limit=50`;
+            : `/api/escolas?limit=50`;
 
           setIsLoading(true);
           try {
@@ -121,7 +121,7 @@ export default function EscolaSelector({
       setIsLoading(true);
       try {
         const redeFiltro = getRedeEscolaFiltro(escolaridade || "");
-        let url = `/api/escolas-prisma?search=${encodeURIComponent(
+        let url = `/api/escolas?search=${encodeURIComponent(
           searchTerm
         )}&limit=20`;
 

@@ -1,9 +1,15 @@
+/**
+ * Cliente Prisma com configuração flexível
+ *
+ * Este arquivo mantém compatibilidade com o código existente
+ * mas agora usa o DatabaseManager para configuração flexível
+ */
+
 import { PrismaClient } from "./generated/prisma";
+import { dbManager } from "./database-manager";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Mantém compatibilidade com código existente
+export const prisma = dbManager.getPrisma();
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Exporta também o manager para uso avançado
+export { dbManager as databaseManager } from "./database-manager";

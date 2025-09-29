@@ -1,11 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getDatabaseClient } from "@/lib/clients";
 import { requireAuth } from "@/lib/auth";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,13 +44,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se o curso existe
-    const { data: existingCurso, error: checkError } = await supabase
-      .from("cursos")
-      .select("id")
-      .eq("id", curso_id)
-      .single();
+    const dbClient = await getDatabaseClient();
+    const existingCurso = await dbClient.query("cursos", {
+      where: { id: curso_id },
+      select: { id: true },
+    });
 
-    if (checkError || !existingCurso) {
+    if (!existingCurso || existingCurso.length === 0) {
       return NextResponse.json(
         { error: "Curso não encontrado" },
         { status: 404 }

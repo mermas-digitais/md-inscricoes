@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { verificationService } from "@/lib/services/verification-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,30 +12,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Verify code against MDX25 database
-    // For now, we'll implement a simple validation
-    // In the real implementation, you would:
-    // 1. Query the MDX25 database for the verification code
-    // 2. Check if the code exists and is not expired
-    // 3. Check if the code matches the email
-    // 4. Mark the code as used
+    // Usar o serviço de verificação com flag MDX25
+    const result = await verificationService.verifyCode(email, code, true);
 
-    // Temporary validation - in production, this should come from the database
-    const isValidCode = code.length === 6 && /^\d{6}$/.test(code);
-
-    if (!isValidCode) {
-      return NextResponse.json({ error: "Código inválido" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
-
-    // TODO: Check if code is expired (should be 10 minutes from creation)
-    // TODO: Check if code has already been used
-    // TODO: Mark code as used in database
-
-    console.log(`MDX25 Code verification successful for ${email}: ${code}`);
 
     return NextResponse.json({
       success: true,
       message: "Código verificado com sucesso",
+      provider: result.provider,
     });
   } catch (error) {
     console.error("Error verifying MDX25 code:", error);

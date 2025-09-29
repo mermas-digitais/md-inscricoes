@@ -1,10 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { verificationService } from "@/lib/services";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,51 +12,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get verification code from database with more specific filtering
-    const { data: verificationData, error } = await supabase
-      .from("verification_codes")
-      .select("*")
-      .eq("email", email)
-      .eq("code", code)
-      .gt("expires_at", new Date().toISOString()) // Only get non-expired codes
-      .order("created_at", { ascending: false }) // Get the most recent one
-      .limit(1)
-      .single();
+    // Use the service to verify code
+    const result = await verificationService.verifyCode(email, code, false);
 
-    if (error || !verificationData) {
-      // Clean up any expired codes for this email
-      await supabase
-        .from("verification_codes")
-        .delete()
-        .eq("email", email)
-        .lt("expires_at", new Date().toISOString());
-
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Código não encontrado ou inválido" },
+        { error: result.error || "Código não encontrado ou inválido" },
         { status: 400 }
       );
-    }
-
-    // Double-check if code has expired (redundant but safer)
-    if (new Date() > new Date(verificationData.expires_at)) {
-      // Delete expired code
-      await supabase
-        .from("verification_codes")
-        .delete()
-        .eq("id", verificationData.id);
-
-      return NextResponse.json({ error: "Código expirado" }, { status: 400 });
-    }
-
-    // Code is valid, delete it immediately to prevent reuse and race conditions
-    const { error: deleteError } = await supabase
-      .from("verification_codes")
-      .delete()
-      .eq("id", verificationData.id);
-
-    if (deleteError) {
-      console.error("Error deleting verification code:", deleteError);
-      // Continue anyway, the code was valid
     }
 
     return NextResponse.json({ success: true });
