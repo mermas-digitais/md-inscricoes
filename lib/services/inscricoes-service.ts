@@ -85,9 +85,9 @@ export class InscricoesService {
         };
       }
 
-      // Determinar curso baseado na escolaridade
+      // Determinar curso baseado na modalidade para MDX25 ou escolaridade para outros
       const curso = isMDX25
-        ? data.escolaridade === "Ensino Fundamental 2"
+        ? data.modalidade === "jogos"
           ? "MDX25-Jogos"
           : "MDX25-Robótica"
         : data.escolaridade === "Ensino Fundamental 2"

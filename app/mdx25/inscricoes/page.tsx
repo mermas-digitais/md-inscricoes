@@ -300,6 +300,20 @@ function InscricaoMDX25Content() {
     step3Form.setFieldValue("modalidade", formData.modalidade, false);
   }, [formData.modalidade]);
 
+  // Aplicar regras de gênero quando a modalidade mudar
+  useEffect(() => {
+    if (formData.modalidade === "robotica") {
+      // Para robótica, definir todos os membros como feminino
+      setFormData((prev) => ({
+        ...prev,
+        membros_equipe: prev.membros_equipe.map((membro) => ({
+          ...membro,
+          genero: "feminino",
+        })),
+      }));
+    }
+  }, [formData.modalidade]);
+
   useEffect(() => {
     step4Form.setFieldValue("nome_equipe", formData.nome_equipe, false);
     step4Form.setFieldValue("membros_equipe", formData.membros_equipe, false);
@@ -598,6 +612,16 @@ function InscricaoMDX25Content() {
       ),
     }));
 
+    // Se a modalidade é robótica, automaticamente definir gênero como feminino
+    if (formData.modalidade === "robotica" && campo !== "genero") {
+      setFormData((prev) => ({
+        ...prev,
+        membros_equipe: prev.membros_equipe.map((membro) =>
+          membro.id === id ? { ...membro, genero: "feminino" } : membro
+        ),
+      }));
+    }
+
     // Se o campo é CPF e tem 11 dígitos, verificar se já está sendo usado em outra equipe
     if (campo === "cpf" && valor.length === 11) {
       const existeEmOutraEquipe = await verificarCpfEmOutrasEquipes(valor);
@@ -755,6 +779,31 @@ function InscricaoMDX25Content() {
     )}-${numeros.slice(9, 11)}`;
   };
 
+  // Função para validar regras de gênero baseadas na modalidade
+  const validarRegrasGenero = () => {
+    if (formData.modalidade === "robotica") {
+      // Para robótica, todos os membros devem ser feminino
+      return formData.membros_equipe.every(
+        (membro) => membro.genero === "feminino"
+      );
+    } else if (formData.modalidade === "jogos") {
+      // Para jogos, deve ter pelo menos uma menina (incluindo o orientador)
+      const temMeninaNaEquipe = formData.membros_equipe.some(
+        (membro) =>
+          membro.genero === "feminino" ||
+          membro.genero === "nao-binario" ||
+          membro.genero === "transgenero"
+      );
+      const orientadorEhMenina =
+        formData.genero === "feminino" ||
+        formData.genero === "nao-binario" ||
+        formData.genero === "transgenero";
+
+      return temMeninaNaEquipe || orientadorEhMenina;
+    }
+    return true; // Para outras modalidades, não há restrições
+  };
+
   const isStepValid = (step: number) => {
     switch (step) {
       case 1:
@@ -787,7 +836,8 @@ function InscricaoMDX25Content() {
               membro.genero &&
               validarCpfUnico(membro.cpf, membro.id) &&
               !cpfsEmOutrasEquipes.has(membro.cpf)
-          )
+          ) &&
+          validarRegrasGenero()
         );
       default:
         return false;
@@ -915,7 +965,7 @@ function InscricaoMDX25Content() {
                 <div className="space-y-8">
                   {/* Step 1: Regulamentos */}
                   {currentStep === 1 && (
-                    <Card>
+                    <Card className="border border-gray-200">
                       <CardHeader>
                         <CardTitle className="text-sm font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
                           ATENÇÃO, MERMÃ!
@@ -958,7 +1008,7 @@ function InscricaoMDX25Content() {
                               Concordo que li e aceito os termos dos
                               regulamentos de{" "}
                               <a
-                                href="https://www.google.com"
+                                href="/assets/docs/Regulamento-Espaço-Games.pdf"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="underline text-[#6C2EB5] font-semibold hover:text-[#FF4A97] transition-colors duration-200"
@@ -968,7 +1018,7 @@ function InscricaoMDX25Content() {
                               </a>{" "}
                               e{" "}
                               <a
-                                href="https://www.google.com"
+                                href="/assets/docs/Regulamento-Robótica.pdf"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="underline text-[#6C2EB5] font-semibold hover:text-[#FF4A97] transition-colors duration-200"
@@ -996,7 +1046,7 @@ function InscricaoMDX25Content() {
 
                   {/* Step 2: Dados Pessoais */}
                   {currentStep === 2 && (
-                    <Card>
+                    <Card className="border border-gray-200">
                       <CardHeader>
                         <div className="flex items-center gap-3">
                           <div>
@@ -1009,7 +1059,7 @@ function InscricaoMDX25Content() {
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 ">
                         <CustomInput
                           type="text"
                           value={formatarCpf(formData.cpf)}
@@ -1101,7 +1151,7 @@ function InscricaoMDX25Content() {
 
                   {/* Step 3: Seleção de Modalidade */}
                   {currentStep === 3 && (
-                    <Card>
+                    <Card className="border border-gray-200">
                       <CardHeader>
                         <div className="flex items-center gap-3">
                           <div>
@@ -1240,7 +1290,7 @@ function InscricaoMDX25Content() {
 
                   {/* Step 4: Membros da Equipe */}
                   {currentStep === 4 && (
-                    <Card>
+                    <Card className="border border-gray-200">
                       <CardHeader>
                         <div className="flex items-center gap-3">
                           <div>
@@ -1426,6 +1476,21 @@ function InscricaoMDX25Content() {
                                             valor
                                           )
                                         }
+                                        disabled={
+                                          formData.modalidade === "robotica"
+                                        }
+                                        allowedGenders={
+                                          formData.modalidade === "robotica"
+                                            ? ["feminino"]
+                                            : undefined
+                                        }
+                                        infoMessage={
+                                          formData.modalidade === "robotica"
+                                            ? "Para a competição de robótica, todos os membros devem ser do gênero feminino."
+                                            : formData.modalidade === "jogos"
+                                            ? "Para jogos, é necessário pelo menos uma menina na equipe (pode ser o orientador)."
+                                            : undefined
+                                        }
                                       />
                                     </div>
                                   </div>
@@ -1487,6 +1552,39 @@ function InscricaoMDX25Content() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Mensagem de erro para regras de gênero */}
+                          {formData.modalidade && !validarRegrasGenero() && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-red-800 font-poppins font-semibold">
+                                    Regra de gênero não atendida:
+                                  </p>
+                                  <p className="text-xs text-red-600 mt-1 font-poppins">
+                                    {formData.modalidade === "robotica"
+                                      ? "Todos os membros da equipe devem ser do gênero feminino."
+                                      : formData.modalidade === "jogos"
+                                      ? "É necessário pelo menos uma menina na equipe (pode ser o orientador)."
+                                      : ""}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Mensagem de erro */}

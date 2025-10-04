@@ -53,10 +53,9 @@ export default function ConfirmacaoPage() {
             <div className="w-full max-w-2xl">
               {/* Card principal */}
               <Card className="rounded-2xl bg-white shadow-lg mt-12
-               font-poppins">
+               font-poppins border border-gray-200">
                 <CardHeader className="px-6 pt-6">
                   <div className="flex items-center gap-3">
-                    <div>
                       <CardTitle className="text-sm font-semibold text-[#FF4A97] tracking-wider text-left font-poppins">
                         REDES SOCIAIS
                       </CardTitle>
@@ -65,7 +64,6 @@ export default function ConfirmacaoPage() {
                         <br />
                         mermã
                       </CardDescription>
-                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6 px-6 pb-2">
