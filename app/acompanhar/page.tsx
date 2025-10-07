@@ -23,6 +23,8 @@ import {
   Share2,
   X,
   FileText,
+  Gamepad2,
+  Bot,
 } from "lucide-react";
 import Link from "next/link";
 import { TermoConsentimento } from "@/components/termo-consentimento";
@@ -30,24 +32,59 @@ import { TermoConsentimento } from "@/components/termo-consentimento";
 interface InscricaoData {
   id: string;
   nome_completo: string;
-  email: string;
-  telefone: string;
-  data_nascimento: string;
-  cpf: string;
-  endereco: string;
-  cidade: string;
-  estado: string;
-  cep: string;
   curso_interesse: string;
-  experiencia_nivel: string;
-  motivacao: string;
-  disponibilidade: string;
-  como_soube: string;
   created_at: string;
   status?: string;
-  nome_responsavel?: string;
-  cpf_responsavel?: string;
 }
+
+// Resultados possíveis da consulta por CPF
+interface ResultadoInscricaoTradicional extends InscricaoData {
+  kind: "inscricao";
+}
+
+interface ResultadoEventoParticipante {
+  kind: "evento_participante";
+  equipe: {
+    id: string;
+    nome_equipe: string;
+    modalidade: string | null;
+    status: string;
+  } | null;
+  orientador: {
+    nome: string;
+    escola: string;
+  } | null;
+  membros: Array<{
+    id: string;
+    nome: string;
+    genero: string;
+  }>;
+}
+
+interface ResultadoOrientador {
+  kind: "orientador";
+  orientador: {
+    id: string;
+    nome: string;
+    escola: string;
+  };
+  equipes: Array<{
+    id: string;
+    nome_equipe: string;
+    modalidade: string | null;
+    status: string;
+    membros: Array<{
+      id: string;
+      nome: string;
+      genero: string;
+    }>;
+  }>;
+}
+
+type ConsultaResultado =
+  | ResultadoInscricaoTradicional
+  | ResultadoEventoParticipante
+  | ResultadoOrientador;
 
 const formatCPF = (cpf: string) => {
   if (!cpf) return "";
@@ -247,6 +284,10 @@ export default function AcompanharPage() {
 
   const [cpf, setCpf] = useState(cpfFromUrl || "");
   const [inscricao, setInscricao] = useState<InscricaoData | null>(null);
+  const [resultado, setResultado] = useState<ConsultaResultado | null>(null);
+  const [multiResultados, setMultiResultados] = useState<
+    ConsultaResultado[] | null
+  >(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
@@ -287,10 +328,25 @@ export default function AcompanharPage() {
 
       if (response.ok) {
         console.log("Dados da inscrição:", data);
-        console.log("Status da inscrição:", data.status);
-        setInscricao(data);
+        if (data.kind === "multi") {
+          const results = (data.results || []) as ConsultaResultado[];
+          setMultiResultados(results);
+          // Priorizar orientador no topo já vem da API; limpar single
+          setResultado(null);
+          setInscricao(null);
+        } else {
+          setResultado(data);
+          setMultiResultados(null);
+          if (data.kind === "inscricao") {
+            setInscricao(data as InscricaoData);
+          } else {
+            setInscricao(null);
+          }
+        }
         setError("");
       } else {
+        setResultado(null);
+        setMultiResultados(null);
         setInscricao(null);
         setError(data.error || "Erro ao buscar inscrição");
       }
@@ -480,21 +536,22 @@ export default function AcompanharPage() {
               </Card>
             )}
 
-            {/* Results */}
-            {inscricao && (
+            {/* Results - inscrição tradicional */}
+            {inscricao && !multiResultados && (
               <div className="space-y-4 sm:space-y-6">
                 {/* Status Card */}
-                <div className="rounded-2xl bg-white shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
+                <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
                   <div className="text-center mb-4 sm:mb-6">
-                    <div className="text-xs font-semibold text-[#FF4A97] tracking-wider mb-0 font-poppins">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200 text-[#6C2EB5] text-xs font-semibold">
+                      <FileText className="w-3 h-3" />
                       STATUS DA INSCRIÇÃO
                     </div>
-                    <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm font-poppins">
+                    <p className="text-gray-600 mt-2 text-xs sm:text-sm font-poppins">
                       Informações sobre sua inscrição
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
-                    <h2 className="text-lg sm:text-xl text-purple-700 font-semibold text-center sm:text-left">
+                    <h2 className="text-lg sm:text-xl text-purple-800 font-semibold text-center sm:text-left">
                       Status da Inscrição
                     </h2>
                     <div className="flex justify-center sm:justify-end">
@@ -506,9 +563,11 @@ export default function AcompanharPage() {
                       <p className="text-xs sm:text-sm text-gray-600">
                         Curso selecionado
                       </p>
-                      <p className="font-semibold text-sm sm:text-lg text-purple-700 break-words">
-                        {cursoDisplayNames[inscricao.curso_interesse] ||
-                          inscricao.curso_interesse}
+                      <p className="inline-flex items-center gap-2 font-semibold text-sm sm:text-lg text-purple-800 break-words">
+                        <Badge className="bg-white text-purple-700 border-purple-300">
+                          {cursoDisplayNames[inscricao.curso_interesse] ||
+                            inscricao.curso_interesse}
+                        </Badge>
                       </p>
                     </div>
                     <div>
@@ -676,12 +735,7 @@ export default function AcompanharPage() {
                         Série
                       </p>
                       <p className="font-semibold text-sm sm:text-base capitalize">
-                        {inscricao.motivacao.includes("Ano escolar:")
-                          ? inscricao.motivacao
-                              .split("Ano escolar:")[1]
-                              ?.split("|")[0]
-                              ?.trim() || inscricao.experiencia_nivel
-                          : inscricao.experiencia_nivel}
+                        Não informado
                       </p>
                     </div>
                     <div>
@@ -689,10 +743,7 @@ export default function AcompanharPage() {
                         Escola
                       </p>
                       <p className="font-semibold text-sm sm:text-base break-words">
-                        {inscricao.motivacao.includes("Escola:")
-                          ? inscricao.motivacao.split("Escola:")[1]?.trim() ||
-                            "Não informado"
-                          : "Não informado"}
+                        Não informado
                       </p>
                     </div>
                   </div>
@@ -710,6 +761,372 @@ export default function AcompanharPage() {
                   </div>
                   {getNextSteps(inscricao.status, inscricao)}
                 </div>
+              </div>
+            )}
+
+            {/* Results - participante de evento (MDX25) */}
+            {resultado &&
+              (resultado as any).kind === "evento_participante" &&
+              !multiResultados && (
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
+                    <div className="text-center mb-4 sm:mb-6">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200 text-[#6C2EB5] text-xs font-semibold">
+                        <Users className="w-3 h-3" />
+                        INSCRIÇÃO EM EQUIPE (EVENTO)
+                      </div>
+                      <p className="text-gray-600 mt-2 text-xs sm:text-sm font-poppins">
+                        Detalhes da sua equipe no evento
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Nome da equipe
+                        </p>
+                        <p className="font-semibold text-sm sm:text-lg text-purple-700 break-words">
+                          {(resultado as any).equipe?.nome_equipe || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Modalidade
+                        </p>
+                        <p className="font-semibold text-sm sm:text-base">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white text-purple-700 border border-purple-300">
+                            {(resultado as any).equipe?.modalidade || "-"}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Status
+                        </p>
+                        <p className="font-semibold text-sm sm:text-base">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-white text-purple-700 border border-purple-300">
+                            {(resultado as any).equipe?.status || "-"}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {(resultado as any).orientador && (
+                      <div className="mb-4">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                          Orientador(a)
+                        </p>
+                        <p className="font-semibold text-sm sm:text-base break-words">
+                          {(resultado as any).orientador!.nome} —{" "}
+                          {(resultado as any).orientador!.escola}
+                        </p>
+                      </div>
+                    )}
+
+                    <Separator />
+
+                    <div className="mt-4">
+                      <p className="text-xs sm:text-sm text-gray-600 mb-2">
+                        Membros da equipe
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {(() => {
+                          const membros = (resultado as any)
+                            .membros as Array<any>;
+                          const total = membros.length;
+                          const feminino = membros.filter(
+                            (m) => m.genero === "feminino"
+                          ).length;
+                          const outros = total - feminino;
+                          return (
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-50 text-pink-700 border border-pink-200 text-xs">
+                                <User className="w-3 h-3" /> {total} membros
+                              </span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-xs">
+                                ♀ {feminino} feminino
+                              </span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                                {outros} outros
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {(resultado as any).membros.map((m: any) => (
+                          <div
+                            key={m.id}
+                            className="p-3 border border-gray-200 rounded-lg bg-white/60"
+                          >
+                            <p className="font-semibold text-sm sm:text-base break-words">
+                              {m.nome}
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-600 capitalize">
+                              Gênero: {m.genero}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            {/* Results - orientador (todas as suas equipes) */}
+            {resultado &&
+              (resultado as any).kind === "orientador" &&
+              !multiResultados && (
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
+                    <div className="text-center mb-4 sm:mb-6">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200 text-[#6C2EB5] text-xs font-semibold">
+                        <GraduationCap className="w-3 h-3" />
+                        ORIENTADOR — SUAS EQUIPES NO EVENTO
+                      </div>
+                      <p className="text-gray-600 mt-2 text-xs sm:text-sm font-poppins">
+                        Listagem de equipes vinculadas ao seu CPF
+                      </p>
+                    </div>
+
+                    <div className="mb-4">
+                      <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                        Orientador(a)
+                      </p>
+                      <p className="font-semibold text-sm sm:text-base break-words">
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200">
+                          <User className="w-3 h-3 text-purple-700" />
+                          {(resultado as any).orientador.nome} —{" "}
+                          {(resultado as any).orientador.escola}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(resultado as any).equipes.map((eq: any) => (
+                        <div
+                          key={eq.id}
+                          className="p-4 border-2 border-purple-200 rounded-xl bg-white/70"
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-3">
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Equipe
+                              </p>
+                              <p className="font-semibold text-sm sm:text-base break-words text-purple-800">
+                                {eq.nome_equipe}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Modalidade
+                              </p>
+                              <p className="font-semibold text-sm sm:text-base">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                  {(eq.modalidade || "").toUpperCase() ===
+                                  "JOGOS" ? (
+                                    <Gamepad2 className="w-3.5 h-3.5" />
+                                  ) : (eq.modalidade || "").toUpperCase() ===
+                                    "ROBOTICA" ? (
+                                    <Bot className="w-3.5 h-3.5" />
+                                  ) : null}
+                                  {eq.modalidade || "-"}
+                                </span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Status
+                              </p>
+                              <p className="font-semibold text-sm sm:text-base">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                  {eq.status}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {eq.membros.map((m: any) => (
+                              <div
+                                key={m.id}
+                                className="p-3 border border-gray-200 rounded-lg"
+                              >
+                                <p className="font-semibold text-sm sm:text-base break-words">
+                                  {m.nome}
+                                </p>
+                                <p className="text-xs sm:text-sm text-gray-600 capitalize">
+                                  Gênero: {m.genero}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            {/* Results - múltiplos (prioriza orientador no topo) */}
+            {multiResultados && (
+              <div className="space-y-6">
+                {multiResultados.map((res, idx) => (
+                  <div key={idx}>
+                    {res.kind === "orientador" ? (
+                      <>
+                        {/* Orientador Card */}
+                        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
+                          <div className="text-center mb-4 sm:mb-6">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200 text-[#6C2EB5] text-xs font-semibold">
+                              <GraduationCap className="w-3 h-3" />
+                              ORIENTADOR — SUAS EQUIPES NO EVENTO
+                            </div>
+                          </div>
+                          <div className="mb-4">
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                              Orientador(a)
+                            </p>
+                            <p className="font-semibold text-sm sm:text-base break-words">
+                              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200">
+                                <User className="w-3 h-3 text-purple-700" />
+                                {(res as any).orientador.nome} —{" "}
+                                {(res as any).orientador.escola}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="space-y-3">
+                            {(res as any).equipes.map((eq: any) => (
+                              <div
+                                key={eq.id}
+                                className="p-4 border-2 border-purple-200 rounded-xl bg-white/70"
+                              >
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-3">
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600">
+                                      Equipe
+                                    </p>
+                                    <p className="font-semibold text-sm sm:text-base break-words text-purple-800">
+                                      {eq.nome_equipe}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600">
+                                      Modalidade
+                                    </p>
+                                    <p className="font-semibold text-sm sm:text-base">
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                        {(eq.modalidade || "").toUpperCase() ===
+                                        "JOGOS" ? (
+                                          <Gamepad2 className="w-3.5 h-3.5" />
+                                        ) : (
+                                            eq.modalidade || ""
+                                          ).toUpperCase() === "ROBOTICA" ? (
+                                          <Bot className="w-3.5 h-3.5" />
+                                        ) : null}
+                                        {eq.modalidade || "-"}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600">
+                                      Status
+                                    </p>
+                                    <p className="font-semibold text-sm sm:text-base">
+                                      <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                        {eq.status}
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {eq.membros.map((m: any) => (
+                                    <div
+                                      key={m.id}
+                                      className="p-3 border border-purple-200 rounded-lg bg-white/60"
+                                    >
+                                      <p className="font-semibold text-sm sm:text-base break-words text-purple-800">
+                                        {m.nome}
+                                      </p>
+                                      <span className="inline-block mt-1 text-xs sm:text-sm px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 capitalize">
+                                        {m.genero}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : res.kind === "evento_participante" ? (
+                      <>
+                        {/* Equipe Card */}
+                        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
+                          <div className="text-center mb-4 sm:mb-6">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200 text-[#6C2EB5] text-xs font-semibold">
+                              <Users className="w-3 h-3" />
+                              INSCRIÇÃO EM EQUIPE (EVENTO)
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Nome da equipe
+                              </p>
+                              <p className="font-semibold text-sm sm:text-lg text-purple-700 break-words">
+                                {(res as any).equipe?.nome_equipe || "-"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Modalidade
+                              </p>
+                              <p className="font-semibold text-sm sm:text-base">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-purple-700 border border-purple-300">
+                                  {(res as any).equipe?.modalidade || "-"}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : res.kind === "inscricao" ? (
+                      <>
+                        {/* Inscrição Card */}
+                        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 font-poppins">
+                          <div className="text-center mb-4 sm:mb-6">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-purple-200 text-[#6C2EB5] text-xs font-semibold">
+                              <FileText className="w-3 h-3" />
+                              STATUS DA INSCRIÇÃO
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Curso selecionado
+                              </p>
+                              <p className="inline-flex items-center gap-2 font-semibold text-sm sm:text-lg text-purple-800 break-words">
+                                <Badge className="bg-white text-purple-700 border-purple-300">
+                                  {cursoDisplayNames[
+                                    (res as any).curso_interesse
+                                  ] || (res as any).curso_interesse}
+                                </Badge>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                Data da inscrição
+                              </p>
+                              <p className="font-semibold text-sm sm:text-base">
+                                {formatDate((res as any).created_at)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             )}
 

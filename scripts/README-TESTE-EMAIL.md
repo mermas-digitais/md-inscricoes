@@ -182,3 +182,4 @@ Se encontrar problemas:
 2. Confirme as variáveis de ambiente SMTP
 3. Verifique os logs do servidor
 4. Teste com um email real para confirmar o recebimento
+
