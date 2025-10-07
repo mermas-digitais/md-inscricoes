@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Inscricoes {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String         @db.VarChar
+  nome                 String         @db.VarChar
+  cpf                  String         @db.VarChar
+  data_nascimento      DateTime       @db.Date
+  cep                  String         @db.VarChar
+  logradouro           String         @db.VarChar
+  numero               String         @db.VarChar
+  complemento          String?        @db.VarChar
+  bairro               String         @db.VarChar
+  cidade               String         @db.VarChar
+  estado               String         @db.VarChar
+  nome_responsavel     String         @db.VarChar
+  telefone_whatsapp    String         @db.VarChar
+  escolaridade         String         @db.VarChar
+  ano_escolar          String         @db.VarChar
+  curso                String         @db.VarChar
+  status               String?        @default("INSCRITA") @db.VarChar
+  documento_rg_cpf     String?
+  documento_declaracao String?
+  documento_termo      String?
+  createdAt            DateTime?      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime?      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  escola               String?
+  frequencia           Frequencia[]
+  turmasAlunas         TurmasAlunas[]
+
+  @@index([cpf], map: "idx_inscricoes_cpf")
+  @@index([createdAt], map: "idx_inscricoes_created_at")
+  @@index([curso], map: "idx_inscricoes_curso")
+  @@index([email], map: "idx_inscricoes_email")
+  @@index([status], map: "idx_inscricoes_status")
+  @@map("inscricoes")
+}
+
+model Monitores {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String?
+  email           String?
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  role            String?           @default("MONITOR") @db.VarChar
+  turmasMonitores TurmasMonitores[]
+
+  @@index([email], map: "idx_monitores_email")
+  @@index([role], map: "idx_monitores_role")
+  @@map("monitores")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Escolas {
+  id        Int      @id @default(autoincrement())
+  nome      String   // Removido @unique para permitir mesmo nome em municípios diferentes
+  rede      String   // municipal, estadual, federal, particular
+  publica   Boolean  @default(true) // true para públicas, false para particulares
+  uf        String   // Unidade Federativa
+  municipio String   // Nome do município
+  createdAt DateTime @default(dbgenerated("timezone('utc'::text, now())")) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([nome, municipio, uf], map: "unique_escola_nome_municipio_uf") // Constraint composta
+  @@index([rede], map: "idx_escolas_rede")
+  @@index([publica], map: "idx_escolas_publica")
+  @@index([uf], map: "idx_escolas_uf")
+  @@index([municipio], map: "idx_escolas_municipio")
+  @@map("escolas")
+}
+
+model VerificationCodes {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String    @db.VarChar
+  code      String    @db.VarChar
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([code], map: "idx_verification_codes_code")
+  @@index([email], map: "idx_verification_codes_email")
+  @@index([expiresAt], map: "idx_verification_codes_expires")
+  @@map("verification_codes")
+}
+
+model Cursos {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nomeCurso    String    @map("nome_curso")
+  descricao    String?
+  cargaHoraria Int?      @map("carga_horaria")
+  publicoAlvo  String?   @map("publico_alvo")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  status       String    @default("ATIVO")
+  projeto      String    @default("Mermãs Digitais")
+  turmas       Turmas[]
+
+  @@map("cursos")
+}
+
+model Turmas {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cursoId         String            @map("curso_id") @db.Uuid
+  codigoTurma     String            @map("codigo_turma")
+  anoLetivo       Int               @map("ano_letivo")
+  status          String            @default("Planejamento")
+  createdAt       DateTime?         @default(now()) @map("created_at") @db.Timestamptz(6)
+  descricao       String?
+  semestre        Int               @default(1)
+  updatedAt       DateTime?         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  aulas           Aulas[]
+  modulos         Modulos[]
+  curso           Cursos            @relation(fields: [cursoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turmasAlunas    TurmasAlunas[]
+  turmasMonitores TurmasMonitores[]
+
+  @@map("turmas")
+}
+
+model TurmasMonitores {
+  turmaId   String    @map("turma_id") @db.Uuid
+  monitorId String    @map("monitor_id") @db.Uuid
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  monitor   Monitores @relation(fields: [monitorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turma     Turmas    @relation(fields: [turmaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([turmaId, monitorId])
+  @@map("turmas_monitores")
+}
+
+model TurmasAlunas {
+  turmaId   String     @map("turma_id") @db.Uuid
+  alunaId   String     @map("aluna_id") @db.Uuid
+  createdAt DateTime?  @default(now()) @map("created_at") @db.Timestamptz(6)
+  aluna     Inscricoes @relation(fields: [alunaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  turma     Turmas     @relation(fields: [turmaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([turmaId, alunaId])
+  @@map("turmas_alunas")
+}
+
+model Aulas {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turmaId            String          @map("turma_id") @db.Uuid
+  dataAula           DateTime?       @map("data_aula") @db.Date
+  conteudoMinistrado String?         @map("conteudo_ministrado")
+  createdAt          DateTime?       @default(now()) @map("created_at") @db.Timestamptz(6)
+  moduloId           String?         @map("modulo_id") @db.Uuid
+  nomeAula           String?         @map("nome_aula")
+  ordem              Int?
+  status             String          @default("bloqueada")
+  turma              Turmas          @relation(fields: [turmaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  frequencia         Frequencia[]
+  materiaisAula      MateriaisAula[]
+
+  @@map("aulas")
+}
+
+model Frequencia {
+  aulaId    String     @map("aula_id") @db.Uuid
+  alunaId   String     @map("aluna_id") @db.Uuid
+  presente  Boolean    @default(false)
+  createdAt DateTime?  @default(now()) @map("created_at") @db.Timestamptz(6)
+  aluna     Inscricoes @relation(fields: [alunaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  aula      Aulas      @relation(fields: [aulaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([aulaId, alunaId])
+  @@map("frequencia")
+}
+
+model Modulos {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turmaId         String    @map("turma_id") @db.Uuid
+  nomeModulo      String    @map("nome_modulo")
+  descricao       String?
+  quantidadeAulas Int       @default(0) @map("quantidade_aulas")
+  createdAt       DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  turma           Turmas    @relation(fields: [turmaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("modulos")
+}
+
+model MateriaisAula {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aulaId       String    @map("aula_id") @db.Uuid
+  nomeMaterial String    @map("nome_material")
+  descricao    String?
+  tipoMaterial String    @map("tipo_material")
+  urlMaterial  String    @map("url_material")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  aula         Aulas     @relation(fields: [aulaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("materiais_aula")
+}
+
+model Eventos {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nome              String              @db.VarChar(255)
+  descricao         String?
+  dataInicio        DateTime            @map("data_inicio") @db.Timestamptz(6)
+  dataFim           DateTime            @map("data_fim") @db.Timestamptz(6)
+  ativo             Boolean?            @default(true)
+  createdAt         DateTime?           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  inscricoesEventos InscricoesEventos[]
+  modalidades       Modalidades[]
+
+  @@index([ativo], map: "idx_eventos_ativo")
+  @@index([createdAt], map: "idx_eventos_created_at")
+  @@index([dataInicio], map: "idx_eventos_data_inicio")
+  @@index([nome], map: "idx_eventos_nome")
+  @@map("eventos")
+}
+
+model Orientadores {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nome              String              @db.VarChar(255)
+  cpf               String              @unique @db.VarChar(14)
+  telefone          String              @db.VarChar(20)
+  email             String              @unique @db.VarChar(255)
+  escola            String              @db.VarChar(255)
+  genero            String              @db.VarChar(20)
+  ativo             Boolean?            @default(true)
+  createdAt         DateTime?           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  inscricoesEventos InscricoesEventos[]
+
+  @@index([ativo], map: "idx_orientadores_ativo")
+  @@index([cpf], map: "idx_orientadores_cpf")
+  @@index([email], map: "idx_orientadores_email")
+  @@index([escola], map: "idx_orientadores_escola")
+  @@map("orientadores")
+}
+
+model Modalidades {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventoId          String              @map("evento_id") @db.Uuid
+  nome              String              @db.VarChar(255)
+  descricao         String?
+  limiteVagas       Int                 @default(0) @map("limite_vagas")
+  vagasOcupadas     Int?                @default(0) @map("vagas_ocupadas")
+  ativo             Boolean?            @default(true)
+  createdAt         DateTime?           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  inscricoesEventos InscricoesEventos[]
+  evento            Eventos             @relation(fields: [eventoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([ativo], map: "idx_modalidades_ativo")
+  @@index([eventoId], map: "idx_modalidades_evento_id")
+  @@index([nome], map: "idx_modalidades_nome")
+  @@map("modalidades")
+}
+
+model InscricoesEventos {
+  id                   String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventoId             String                 @map("evento_id") @db.Uuid
+  orientadorId         String                 @map("orientador_id") @db.Uuid
+  modalidadeId         String                 @map("modalidade_id") @db.Uuid
+  status               String                 @default("PENDENTE") @db.VarChar(50)
+  observacoes          String?
+  createdAt            DateTime?              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime?              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  evento               Eventos                @relation(fields: [eventoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  modalidade           Modalidades            @relation(fields: [modalidadeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  orientador           Orientadores           @relation(fields: [orientadorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  participantesEventos ParticipantesEventos[]
+
+  @@index([eventoId], map: "idx_inscricoes_eventos_evento_id")
+  @@index([modalidadeId], map: "idx_inscricoes_eventos_modalidade_id")
+  @@index([orientadorId], map: "idx_inscricoes_eventos_orientador_id")
+  @@index([status], map: "idx_inscricoes_eventos_status")
+  @@map("inscricoes_eventos")
+}
+
+model ParticipantesEventos {
+  id             String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  inscricaoId    String            @map("inscricao_id") @db.Uuid
+  nome           String            @db.VarChar(255)
+  cpf            String            @db.VarChar(14)
+  dataNascimento DateTime          @map("data_nascimento") @db.Date
+  email          String?           @db.VarChar(255)
+  genero         String            @db.VarChar(20)
+  createdAt      DateTime?         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime?         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  inscricao      InscricoesEventos @relation(fields: [inscricaoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([cpf], map: "idx_participantes_eventos_cpf")
+  @@index([inscricaoId], map: "idx_participantes_eventos_inscricao_id")
+  @@index([nome], map: "idx_participantes_eventos_nome")
+  @@map("participantes_eventos")
+}
