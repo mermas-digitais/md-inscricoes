@@ -968,7 +968,7 @@ function InscricaoMDX25Content() {
                     <Card className="border border-gray-200">
                       <CardHeader>
                         <CardTitle className="text-sm font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
-                          ATENÇÃO, MERMÃ!
+                          ATENÇÃO!
                         </CardTitle>
                         <CardDescription className="text-2xl md:text-3xl font-extrabold text-[#6C2EB5] leading-7 mb-4 text-left font-poppins">
                           Informações importantes antes de iniciar a inscrição
@@ -979,7 +979,7 @@ function InscricaoMDX25Content() {
                           <div className="flex items-start space-x-3">
                             <div className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></div>
                             <p className="text-gray-800 text-base font-poppins">
-                              Apenas o orientador da equipe deverá efetuar a
+                              Apenas o(a) orientador(a) da equipe deverá efetuar a
                               inscrição e pode orientar uma ou mais equipes
                             </p>
                           </div>

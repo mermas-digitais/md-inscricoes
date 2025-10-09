@@ -234,7 +234,7 @@ export default function EscolaSelector({
         htmlFor="escola"
         className="block text-sm font-semibold text-gray-700 font-poppins mb-2"
       >
-        Escola onde estuda<span className="text-[#FF4A97] ml-1">*</span>
+        Minha escola<span className="text-[#FF4A97] ml-1">*</span>
       </label>
 
       <div className="relative">
