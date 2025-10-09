@@ -6,7 +6,23 @@ import { useState, useEffect } from "react";
 import { CustomInput } from "@/components/ui/custom-input";
 import { CustomButton } from "@/components/ui/custom-button";
 import { CodeInput } from "@/components/ui/code-input";
-import { Loader2, ChevronDown, AlertTriangle, Timer, Zap } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Loader2,
+  ChevronDown,
+  AlertTriangle,
+  Timer,
+  Zap,
+  FileText,
+  Gamepad2,
+  Bot,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Header } from "@/components/header";
 import { useZodForm } from "@/hooks/use-zod-form";
@@ -25,6 +41,7 @@ export default function MDX25HomePage() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [showRegulationsModal, setShowRegulationsModal] = useState(false);
   // Variável de controle do countdown - pode ser controlada via env
   const [showCountdown] = useState(
     process.env.NEXT_PUBLIC_SHOW_COUNTDOWN !== "false"
@@ -544,6 +561,25 @@ export default function MDX25HomePage() {
           {/* Container do conteúdo principal */}
           <div className="flex-1 flex items-start justify-center px-4 sm:px-6 lg:px-8 py-8 pb-4 bg-[#9754CB00]">
             <div className="w-full max-w-md">
+              {/* Card de Regulamentos */}
+              <div className="mb-6">
+                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                  <div className="text-center mb-3">
+                    <p className="text-xs font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
+                      Quer saber mais sobre as regras do evento?
+                    </p>
+                  </div>
+                  <CustomButton
+                    type="button"
+                    onClick={() => setShowRegulationsModal(true)}
+                    className="bg-gradient-to-r from-[#6C2EB5] to-[#FF4A97] hover:from-[#5a2599] hover:to-[#e6397a] text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  >
+                    <FileText className="w-5 h-5" />
+                    Acesse o regulamento
+                  </CustomButton>
+                </div>
+              </div>
+
               <div className="rounded-2xl bg-white shadow-lg px-6 pt-6 pb-6 font-poppins">
                 <div className="text-xs font-semibold text-[#FF4A97] tracking-wider mb-0 text-left font-poppins">
                   MDX25 - COMECE SUA INSCRIÇÃO AGORA MESMO!
@@ -589,6 +625,100 @@ export default function MDX25HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Regulamentos */}
+      <Dialog
+        open={showRegulationsModal}
+        onOpenChange={setShowRegulationsModal}
+      >
+        <DialogContent className="max-w-md w-[95vw] bg-gradient-to-br from-white via-pink-50/10 to-purple-50/10 border-0 shadow-2xl">
+          <DialogHeader className="border-b border-gray-100/50 pb-6 bg-gradient-to-r from-pink-50/50 via-purple-50/30 to-blue-50/50 -m-6 mb-0 px-6 pt-6">
+            <DialogTitle className="text-xl font-bold flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#6C2EB5] to-[#FF4A97] flex items-center justify-center shadow-lg">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="bg-gradient-to-r from-[#6C2EB5] to-[#FF4A97] bg-clip-text text-transparent">
+                  Regulamentos MDX25
+                </span>
+                <p className="text-sm font-normal text-gray-600 mt-1">
+                  Escolha o regulamento que deseja visualizar
+                </p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-6">
+            {/* Regulamento de Jogos */}
+            <a
+              href="/assets/docs/Regulamento-Espaço-Games.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full p-4 bg-gradient-to-r from-[#FF4A97] to-[#C769E3] text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Gamepad2 className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-lg">Regulamento de Jogos</h3>
+                    <p className="text-sm opacity-90">
+                      Mostra de Jogos Mermãs Digitais
+                    </p>
+                  </div>
+                </div>
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </a>
+
+            {/* Regulamento de Robótica */}
+            <a
+              href="/assets/docs/Regulamento-Robótica.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full p-4 bg-gradient-to-r from-[#6C2EB5] to-[#4a1a8a] text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-lg">
+                      Regulamento de Robótica
+                    </h3>
+                    <p className="text-sm opacity-90">
+                      2º Desafio de Robótica Mermãs Digitais
+                    </p>
+                  </div>
+                </div>
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
