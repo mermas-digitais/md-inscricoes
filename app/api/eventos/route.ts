@@ -6,8 +6,48 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const ativo = searchParams.get("ativo");
     const limit = parseInt(searchParams.get("limit") || "50");
+    const stats = searchParams.get("stats");
 
     const dbClient = await getDatabaseClient();
+
+    // Se for requisição de estatísticas
+    if (stats === "true") {
+      const [
+        totalEventos,
+        eventosAtivos,
+        totalInscricoes,
+        totalParticipantes,
+        orientadoresAtivos,
+        modalidadesAtivas,
+      ] = await Promise.all([
+        dbClient.query("eventos", { select: { id: true } }),
+        dbClient.query("eventos", {
+          where: { ativo: true },
+          select: { id: true },
+        }),
+        dbClient.query("inscricoesEventos", { select: { id: true } }),
+        dbClient.query("participantesEventos", { select: { id: true } }),
+        dbClient.query("orientadores", {
+          where: { ativo: true },
+          select: { id: true },
+        }),
+        dbClient.query("modalidades", {
+          where: { ativo: true },
+          select: { id: true },
+        }),
+      ]);
+
+      return NextResponse.json({
+        stats: {
+          totalEventos: totalEventos.length,
+          eventosAtivos: eventosAtivos.length,
+          totalInscricoes: totalInscricoes.length,
+          totalParticipantes: totalParticipantes.length,
+          orientadoresAtivos: orientadoresAtivos.length,
+          modalidadesAtivas: modalidadesAtivas.length,
+        },
+      });
+    }
 
     // Construir filtros
     const where: any = {};
@@ -16,33 +56,39 @@ export async function GET(request: NextRequest) {
       where.ativo = ativo === "true";
     }
 
-    // Buscar eventos com modalidades
+    // Buscar eventos
     const eventos = await dbClient.query("eventos", {
       where,
-      include: {
-        modalidades: {
-          where: { ativo: true },
-          select: {
-            id: true,
-            nome: true,
-            descricao: true,
-            limiteVagas: true,
-            vagasOcupadas: true,
-          },
-        },
-        _count: {
-          select: {
-            inscricoesEventos: true,
-          },
-        },
-      },
       orderBy: {
         dataInicio: "desc",
       },
       take: limit,
     });
 
-    return NextResponse.json({ eventos });
+    // Para cada evento, buscar modalidades e contagem de inscrições
+    const eventosComDetalhes = await Promise.all(
+      eventos.map(async (evento: any) => {
+        // Buscar modalidades do evento
+        const modalidades = await dbClient.query("modalidades", {
+          where: { eventoId: evento.id, ativo: true },
+        });
+
+        // Buscar contagem de inscrições
+        const inscricoes = await dbClient.query("inscricoesEventos", {
+          where: { eventoId: evento.id },
+        });
+
+        return {
+          ...evento,
+          modalidades,
+          _count: {
+            inscricoesEventos: inscricoes.length,
+          },
+        };
+      })
+    );
+
+    return NextResponse.json({ eventos: eventosComDetalhes });
   } catch (error) {
     console.error("Error fetching events:", error);
     return NextResponse.json(
@@ -82,33 +128,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Criar evento com modalidades
-    const evento = await prisma.eventos.create({
+    const dbClient = await getDatabaseClient();
+
+    // Criar evento
+    const evento = await dbClient.create("eventos", {
       data: {
         nome,
         descricao,
         dataInicio: inicio,
         dataFim: fim,
         ativo,
-        modalidades: {
-          create: modalidades.map((modalidade: any) => ({
+      },
+    });
+
+    // Criar modalidades separadamente
+    const modalidadesCriadas = await Promise.all(
+      modalidades.map((modalidade: any) =>
+        dbClient.create("modalidades", {
+          data: {
+            eventoId: evento.id,
             nome: modalidade.nome,
             descricao: modalidade.descricao,
             limiteVagas: modalidade.limiteVagas || 0,
             vagasOcupadas: 0,
             ativo: true,
-          })),
-        },
-      },
-      include: {
-        modalidades: true,
-      },
-    });
+          },
+        })
+      )
+    );
+
+    // Retornar evento com modalidades
+    const eventoCompleto = {
+      ...evento,
+      modalidades: modalidadesCriadas,
+    };
 
     return NextResponse.json(
       {
         message: "Evento criado com sucesso",
-        evento,
+        evento: eventoCompleto,
       },
       { status: 201 }
     );

@@ -774,6 +774,24 @@ export default function PainelPage() {
                     <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
                   </DropdownMenuItem>
 
+                  <DropdownMenuItem
+                    className="flex items-center gap-4 p-4 cursor-pointer hover:bg-purple-50 transition-colors border-0 focus:bg-purple-50"
+                    onClick={() => handleNavigateToModule("eventos")}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-purple-100 to-purple-200 shadow-sm">
+                      <Calendar className="h-5 w-5 text-purple-700" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        Eventos
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Gestão de eventos e inscrições em grupo
+                      </div>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                  </DropdownMenuItem>
+
                   <DropdownMenuSeparator className="my-2 bg-gray-100" />
 
                   <DropdownMenuLabel className="font-semibold text-gray-900 px-4 py-2">
@@ -809,12 +827,12 @@ export default function PainelPage() {
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Agora você tem acesso a uma plataforma integrada que unifica a
-            gestão de matrículas e o módulo de ensino em um só lugar.
+            gestão de matrículas, ensino e eventos em um só lugar.
           </p>
         </div>
 
         {/* Cards dos Módulos */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="grid md:grid-cols-3 gap-8 mb-12">
           {/* Módulo de Matrículas */}
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-300">
             <CardHeader>
@@ -898,6 +916,52 @@ export default function PainelPage() {
                 className="w-full bg-green-600 hover:bg-green-700"
               >
                 Explorar Ensino
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Módulo de Eventos */}
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-purple-900">
+                    Módulo de Eventos
+                  </CardTitle>
+                  <CardDescription className="text-purple-700">
+                    Gestão de eventos especiais
+                  </CardDescription>
+                </div>
+                <Badge className="bg-purple-200 text-purple-800 border-purple-300">
+                  <Star className="w-3 h-3 mr-1" />
+                  Novo
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2 text-purple-800">
+                  <Calendar className="w-4 h-4" />
+                  <span>Gestão de eventos</span>
+                </li>
+                <li className="flex items-center gap-2 text-purple-800">
+                  <Users className="w-4 h-4" />
+                  <span>Inscrições em grupo</span>
+                </li>
+                <li className="flex items-center gap-2 text-purple-800">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Modalidades por evento</span>
+                </li>
+              </ul>
+              <Button
+                onClick={() => handleNavigateToModule("eventos")}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+              >
+                Acessar Eventos
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </CardContent>

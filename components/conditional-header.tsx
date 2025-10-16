@@ -6,8 +6,12 @@ import { Header } from "./header";
 export function ConditionalHeader() {
   const pathname = usePathname();
 
-  // Não exibir header nas páginas do monitor
-  if (pathname.startsWith("/matriculas")) {
+  // Não exibir header nas páginas do monitor e módulos
+  if (
+    pathname.startsWith("/matriculas") ||
+    pathname.startsWith("/ensino") ||
+    pathname.startsWith("/eventos")
+  ) {
     return null;
   }
 

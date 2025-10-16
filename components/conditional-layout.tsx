@@ -33,7 +33,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
             pathname === "/matriculas" ||
             pathname === "/painel" ||
             pathname.startsWith("/matriculas") ||
-            pathname.startsWith("/ensino")
+            pathname.startsWith("/ensino") ||
+            pathname.startsWith("/eventos")
           );
         }
       }
