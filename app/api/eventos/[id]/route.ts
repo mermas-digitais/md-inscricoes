@@ -9,59 +9,9 @@ export async function GET(
     const { id } = await params;
     const dbClient = await getDatabaseClient();
 
-    // Buscar evento com modalidades e inscrições
-    const evento = await dbClient.query("eventos", {
-      where: { id },
-      include: {
-        modalidades: {
-          where: { ativo: true },
-          select: {
-            id: true,
-            nome: true,
-            descricao: true,
-            limiteVagas: true,
-            vagasOcupadas: true,
-            ativo: true,
-          },
-        },
-        inscricoesEventos: {
-          include: {
-            orientador: {
-              select: {
-                id: true,
-                nome: true,
-                email: true,
-                telefone: true,
-                escola: true,
-              },
-            },
-            modalidade: {
-              select: {
-                id: true,
-                nome: true,
-              },
-            },
-            participantesEventos: {
-              select: {
-                id: true,
-                nome: true,
-                cpf: true,
-                dataNascimento: true,
-                genero: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        _count: {
-          select: {
-            inscricoesEventos: true,
-          },
-        },
-      },
-    });
+    // 1) Buscar o evento
+    const eventos = await dbClient.query("eventos", { where: { id } });
+    const evento = Array.isArray(eventos) ? eventos[0] : eventos;
 
     if (!evento) {
       return NextResponse.json(
@@ -70,7 +20,67 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ evento });
+    // 2) Buscar modalidades ativas
+    const modalidades = await dbClient.query("modalidades", {
+      where: { eventoId: id, ativo: true },
+    });
+
+    // 3) Buscar inscrições do evento
+    const inscricoes = await dbClient.query("inscricoesEventos", {
+      where: { eventoId: id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // 4) Enriquecer cada inscrição com orientador, modalidade e participantes
+    const inscricoesCompletas = await Promise.all(
+      (inscricoes || []).map(async (ins: any) => {
+        const [orientadorArr, modalidadeArr, participantes] = await Promise.all(
+          [
+            dbClient.query("orientadores", { where: { id: ins.orientadorId } }),
+            dbClient.query("modalidades", { where: { id: ins.modalidadeId } }),
+            dbClient.query("participantesEventos", {
+              where: { inscricaoId: ins.id },
+            }),
+          ]
+        );
+
+        const orientador = Array.isArray(orientadorArr)
+          ? orientadorArr[0]
+          : orientadorArr;
+        const modalidade = Array.isArray(modalidadeArr)
+          ? modalidadeArr[0]
+          : modalidadeArr;
+
+        return {
+          ...ins,
+          orientador: orientador
+            ? {
+                id: orientador.id,
+                nome: orientador.nome,
+                email: orientador.email,
+                telefone: orientador.telefone,
+                escola: orientador.escola,
+              }
+            : null,
+          modalidade: modalidade
+            ? {
+                id: modalidade.id,
+                nome: modalidade.nome,
+              }
+            : null,
+          participantesEventos: participantes || [],
+        };
+      })
+    );
+
+    const payload = {
+      ...evento,
+      modalidades,
+      inscricoesEventos: inscricoesCompletas,
+      _count: { inscricoesEventos: inscricoes?.length || 0 },
+    };
+
+    return NextResponse.json({ evento: payload });
   } catch (error) {
     console.error("Error fetching event:", error);
     return NextResponse.json(

@@ -12,7 +12,7 @@ const { createClient } = require("@supabase/supabase-js");
 const prisma = new PrismaClient();
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // Mapeamento de campos snake_case para camelCase

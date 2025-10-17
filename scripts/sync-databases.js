@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-require('dotenv').config();
+require("dotenv").config();
 // Corrigir DATABASE_URL removendo aspas
 if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('"')) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.slice(1, -1);
@@ -12,7 +12,7 @@ const { createClient } = require("@supabase/supabase-js");
 const prisma = new PrismaClient();
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // Todas as tabelas existem em ambos os bancos agora

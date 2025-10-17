@@ -51,6 +51,10 @@ export interface DatabaseOperations {
   executeQuery(query: string, params?: any[]): Promise<any>;
   query(tableName: string, options?: any): Promise<any>;
   create(tableName: string, data: any): Promise<any>;
+  update(tableName: string, args: { where: any; data: any }): Promise<any>;
+  updateMany(tableName: string, args: { where: any; data: any }): Promise<any>;
+  delete(tableName: string, args: { where: any }): Promise<any>;
+  deleteMany(tableName: string, args: { where: any }): Promise<any>;
   testConnection(): Promise<boolean>;
 }
 
@@ -212,6 +216,66 @@ class PrismaDatabaseClient implements DatabaseOperations {
     });
   }
 
+  // ===== Eventos (implementação Prisma) =====
+  async createOrientador(data: any) {
+    return await this.prisma.orientadores.create({
+      data: {
+        nome: data.nome,
+        cpf: data.cpf,
+        telefone: data.telefone,
+        email: data.email,
+        escola: data.escola,
+        genero: data.genero,
+        ativo: data.ativo !== false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async findOrientadorByCPF(cpf: string) {
+    return await this.prisma.orientadores.findFirst({ where: { cpf } });
+  }
+
+  async findEventoByName(nome: string) {
+    return await this.prisma.eventos.findFirst({
+      where: { nome, ativo: true },
+    });
+  }
+
+  async findModalidadeByName(nome: string) {
+    return await this.prisma.modalidades.findFirst({ where: { nome } });
+  }
+
+  async createInscricaoEvento(data: any) {
+    return await this.prisma.inscricoesEventos.create({
+      data: {
+        eventoId: data.eventoId,
+        modalidadeId: data.modalidadeId,
+        orientadorId: data.orientadorId,
+        status: data.status ?? "PENDENTE",
+        observacoes: data.observacoes ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async createParticipanteEvento(data: any) {
+    return await this.prisma.participantesEventos.create({
+      data: {
+        inscricaoId: data.inscricaoId,
+        nome: data.nome,
+        cpf: data.cpf,
+        dataNascimento: new Date(data.dataNascimento),
+        email: data.email ?? null,
+        genero: data.genero,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+  }
+
   async executeQuery(query: string, params: any[] = []) {
     // Para Prisma, você pode usar $queryRaw para queries SQL
     return await this.prisma.$queryRawUnsafe(query, ...params);
@@ -239,6 +303,30 @@ class PrismaDatabaseClient implements DatabaseOperations {
     }
 
     return await model.create({ data });
+  }
+
+  async update(tableName: string, args: { where: any; data: any }) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) throw new Error(`Model ${tableName} not found`);
+    return await model.update(args);
+  }
+
+  async updateMany(tableName: string, args: { where: any; data: any }) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) throw new Error(`Model ${tableName} not found`);
+    return await model.updateMany(args);
+  }
+
+  async delete(tableName: string, args: { where: any }) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) throw new Error(`Model ${tableName} not found`);
+    return await model.delete(args);
+  }
+
+  async deleteMany(tableName: string, args: { where: any }) {
+    const model = (this.prisma as any)[tableName];
+    if (!model) throw new Error(`Model ${tableName} not found`);
+    return await model.deleteMany(args);
   }
 
   async testConnection() {
@@ -474,16 +562,28 @@ class SupabaseDatabaseClient implements DatabaseOperations {
   }
 
   async query(tableName: string, options?: any): Promise<any> {
-    let query = this.supabase.from(tableName).select("*");
+    // Aplicar mapeamento para snake_case nas opções
+    const { toSnakeCaseWhere, toSnakeCaseOrderBy, fromSnakeCaseRows } =
+      await import("./supabase-mapping");
+
+    let query = this.supabase.from(this.tableToSnake(tableName)).select("*");
 
     if (options?.where) {
-      Object.entries(options.where).forEach(([key, value]) => {
-        query = query.eq(key, value);
+      const where = toSnakeCaseWhere(
+        this.tableToSnake(tableName),
+        options.where
+      );
+      Object.entries(where).forEach(([key, value]) => {
+        query = query.eq(key, value as any);
       });
     }
 
     if (options?.orderBy) {
-      Object.entries(options.orderBy).forEach(([key, value]) => {
+      const orderBy = toSnakeCaseOrderBy(
+        this.tableToSnake(tableName),
+        options.orderBy
+      );
+      Object.entries(orderBy).forEach(([key, value]) => {
         query = query.order(key, { ascending: value === "asc" });
       });
     }
@@ -494,19 +594,107 @@ class SupabaseDatabaseClient implements DatabaseOperations {
 
     const { data, error } = await query;
     if (error) throw error;
-
-    return data;
+    return fromSnakeCaseRows(this.tableToSnake(tableName), data || []);
   }
 
   async create(tableName: string, data: any): Promise<any> {
+    const { toSnakeCaseData, fromSnakeCaseRow } = await import(
+      "./supabase-mapping"
+    );
+    const payload = toSnakeCaseData(
+      this.tableToSnake(tableName),
+      data.data ?? data
+    );
     const { data: result, error } = await this.supabase
-      .from(tableName)
-      .insert(data)
+      .from(this.tableToSnake(tableName))
+      .insert(payload)
       .select()
       .single();
 
     if (error) throw error;
-    return result;
+    return fromSnakeCaseRow(this.tableToSnake(tableName), result);
+  }
+
+  async update(tableName: string, args: { where: any; data: any }) {
+    const { toSnakeCaseData, toSnakeCaseWhere } = await import(
+      "./supabase-mapping"
+    );
+    const payload = toSnakeCaseData(this.tableToSnake(tableName), args.data);
+    const where = toSnakeCaseWhere(this.tableToSnake(tableName), args.where);
+    let query = this.supabase
+      .from(this.tableToSnake(tableName))
+      .update(payload);
+    Object.entries(where).forEach(([k, v]) => (query = query.eq(k, v as any)));
+    const { data, error } = await query.select().maybeSingle();
+    if (error) throw error;
+    return data
+      ? (await import("./supabase-mapping")).fromSnakeCaseRow(
+          this.tableToSnake(tableName),
+          data
+        )
+      : null;
+  }
+
+  async updateMany(tableName: string, args: { where: any; data: any }) {
+    const { toSnakeCaseData, toSnakeCaseWhere } = await import(
+      "./supabase-mapping"
+    );
+    const payload = toSnakeCaseData(this.tableToSnake(tableName), args.data);
+    const where = toSnakeCaseWhere(this.tableToSnake(tableName), args.where);
+    let query = this.supabase
+      .from(this.tableToSnake(tableName))
+      .update(payload);
+    Object.entries(where).forEach(([k, v]) => (query = query.eq(k, v as any)));
+    const { data, error } = await query.select();
+    if (error) throw error;
+    return (await import("./supabase-mapping")).fromSnakeCaseRows(
+      this.tableToSnake(tableName),
+      data || []
+    );
+  }
+
+  async delete(tableName: string, args: { where: any }) {
+    const { toSnakeCaseWhere } = await import("./supabase-mapping");
+    const where = toSnakeCaseWhere(this.tableToSnake(tableName), args.where);
+    let query = this.supabase.from(this.tableToSnake(tableName)).delete();
+    Object.entries(where).forEach(([k, v]) => (query = query.eq(k, v as any)));
+    const { data, error } = await query.select().maybeSingle();
+    if (error) throw error;
+    return data
+      ? (await import("./supabase-mapping")).fromSnakeCaseRow(
+          this.tableToSnake(tableName),
+          data
+        )
+      : null;
+  }
+
+  async deleteMany(tableName: string, args: { where: any }) {
+    const { toSnakeCaseWhere } = await import("./supabase-mapping");
+    const where = toSnakeCaseWhere(this.tableToSnake(tableName), args.where);
+    let query = this.supabase.from(this.tableToSnake(tableName)).delete();
+    Object.entries(where).forEach(([k, v]) => (query = query.eq(k, v as any)));
+    const { data, error } = await query.select();
+    if (error) throw error;
+    return (await import("./supabase-mapping")).fromSnakeCaseRows(
+      this.tableToSnake(tableName),
+      data || []
+    );
+  }
+
+  private tableToSnake(table: string) {
+    // Mapear nomes de modelos Prisma/camel para as tabelas reais
+    const map: Record<string, string> = {
+      eventos: "eventos",
+      modalidades: "modalidades",
+      orientadores: "orientadores",
+      inscricoesEventos: "inscricoes_eventos",
+      participantesEventos: "participantes_eventos",
+      verificationCodes: "verification_codes",
+      turmasAlunas: "turmas_alunas",
+      turmasMonitores: "turmas_monitores",
+      materiaisAula: "materiais_aula",
+    };
+    return map[table] ?? table;
   }
 
   async testConnection() {
@@ -750,6 +938,22 @@ export class DatabaseClient {
 
   public async create(tableName: string, data: any) {
     return await this.operations.create(tableName, data);
+  }
+
+  public async update(tableName: string, args: { where: any; data: any }) {
+    return await this.operations.update(tableName, args);
+  }
+
+  public async updateMany(tableName: string, args: { where: any; data: any }) {
+    return await this.operations.updateMany(tableName, args);
+  }
+
+  public async delete(tableName: string, args: { where: any }) {
+    return await this.operations.delete(tableName, args);
+  }
+
+  public async deleteMany(tableName: string, args: { where: any }) {
+    return await this.operations.deleteMany(tableName, args);
   }
 
   public async executeQuery(query: string, params?: any[]) {
