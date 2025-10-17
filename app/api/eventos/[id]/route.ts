@@ -21,7 +21,7 @@ export async function GET(
     }
 
     // 2) Buscar modalidades ativas
-    const modalidades = await dbClient.query("modalidades", {
+    let modalidades = await dbClient.query("modalidades", {
       where: { eventoId: id, ativo: true },
     });
 
@@ -72,6 +72,17 @@ export async function GET(
         };
       })
     );
+
+    // Calcular vagasOcupadas por modalidade
+    modalidades = modalidades.map((mod: any) => {
+      const vagasOcupadas = inscricoes.filter(
+        (ins: any) => ins.modalidadeId === mod.id
+      ).length;
+      return {
+        ...mod,
+        vagasOcupadas,
+      };
+    });
 
     const payload = {
       ...evento,
