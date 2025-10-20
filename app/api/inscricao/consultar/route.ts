@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
           id: m.id,
           nome: m.nome,
           genero: m.genero,
+          ouvinte: !!m.ouvinte,
         })),
       };
     }
@@ -190,6 +191,7 @@ export async function GET(request: NextRequest) {
           id: m.id,
           nome: m.nome,
           genero: m.genero,
+          ouvinte: !!m.ouvinte,
         }));
       }
 

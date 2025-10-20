@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
     console.log("MDX25: Received confirmation email request:", body);
 
     const { email, nomeCompleto, nomeCurso, cpf } = body;
+    const isOuvinte =
+      typeof nomeCurso === "string" &&
+      nomeCurso.toUpperCase().includes("OUVINTE");
 
     if (!email || !nomeCompleto || !nomeCurso || !cpf) {
       console.error("MDX25: Missing required fields:", {
@@ -54,7 +57,9 @@ export async function POST(request: NextRequest) {
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: email,
-      subject: `🎉 Confirmação de Inscrição MDX25 - ${nomeCurso}`,
+      subject: isOuvinte
+        ? `🎉 Confirmação de Participação como Ouvinte - MDX25`
+        : `🎉 Confirmação de Inscrição MDX25 - ${nomeCurso}`,
       html: `
         <div style="font-family: 'Poppins', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa;">
           <!-- Header com gradiente e logo -->
@@ -68,16 +73,22 @@ export async function POST(request: NextRequest) {
             </div>
             
             <div style="background: rgba(255,255,255,0.2); padding: 12px 24px; border-radius: 30px; display: inline-block; margin-top: 10px;">
-              <span style="color: white; font-size: 18px; font-weight: 600;">✅ Inscrição Confirmada!</span>
+              <span style="color: white; font-size: 18px; font-weight: 600;">✅ ${
+                isOuvinte
+                  ? "Participação como Ouvinte Confirmada!"
+                  : "Inscrição Confirmada!"
+              }</span>
             </div>
           </div>
           
           <!-- Conteúdo principal -->
           <div style="padding: 40px 30px; background-color: white;">
             <p style="font-size: 20px; color: #333; margin: 0 0 20px 0;">Olá, <strong style="color: #6C2EB5;">${nomeCompleto}</strong>! 👋</p>
-            <p style="font-size: 18px; color: #666; line-height: 1.6; margin: 0 0 30px 0;">
-              Sua inscrição para <strong style="color: #f8f9fa; background: linear-gradient(135deg, #FF4A97, #C769E3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${nomeCurso}</strong> foi realizada com sucesso!
-            </p>
+            ${
+              isOuvinte
+                ? `<p style="font-size: 18px; color: #666; line-height: 1.6; margin: 0 0 30px 0;">Sua participação como <strong style=\"color: #FF4A97; background: linear-gradient(135deg, #FF4A97, #C769E3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;\">Ouvinte</strong> no <strong>MDX25</strong> foi confirmada!</p>`
+                : `<p style=\"font-size: 18px; color: #666; line-height: 1.6; margin: 0 0 30px 0;\">Sua inscrição para <strong style=\"color: #f8f9fa; background: linear-gradient(135deg, #FF4A97, #C769E3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;\">${nomeCurso}</strong> foi realizada com sucesso!</p>`
+            }
             
             <!-- Card de detalhes -->
             <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 30px; border-radius: 20px; margin: 30px 0; border-left: 6px solid #6C2EB5; box-shadow: 0 8px 25px rgba(108, 46, 181, 0.15);">
@@ -98,7 +109,9 @@ export async function POST(request: NextRequest) {
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #e9ecef;">
                   <span style="color: #666; font-weight: 500; font-size: 16px;">Modalidade:</span>
-                  <span style="color: white; font-weight: 700; background: linear-gradient(135deg, #FF4A97, #C769E3); padding: 8px 18px; border-radius: 25px; font-size: 14px; box-shadow: 0 3px 12px rgba(255, 74, 151, 0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.5); letter-spacing: 0.5px;">${nomeCurso}</span>
+                  <span style="color: white; font-weight: 700; background: linear-gradient(135deg, #FF4A97, #C769E3); padding: 8px 18px; border-radius: 25px; font-size: 14px; box-shadow: 0 3px 12px rgba(255, 74, 151, 0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.5); letter-spacing: 0.5px;">${
+                    isOuvinte ? "Ouvinte" : nomeCurso
+                  }</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0;">
                   <span style="color: #666; font-weight: 500; font-size: 16px;">Status:</span>
