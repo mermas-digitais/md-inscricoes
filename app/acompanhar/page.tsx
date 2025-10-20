@@ -865,6 +865,11 @@ export default function AcompanharPage() {
                             <p className="text-xs sm:text-sm text-gray-600 capitalize">
                               Gênero: {m.genero}
                             </p>
+                            {m.ouvinte && (
+                              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                                👂 Ouvinte
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -949,14 +954,21 @@ export default function AcompanharPage() {
                             {eq.membros.map((m: any) => (
                               <div
                                 key={m.id}
-                                className="p-3 border border-gray-200 rounded-lg"
+                                className="p-3 border border-purple-200 rounded-lg bg-white/60"
                               >
-                                <p className="font-semibold text-sm sm:text-base break-words">
+                                <p className="font-semibold text-sm sm:text-base break-words text-purple-800">
                                   {m.nome}
                                 </p>
-                                <p className="text-xs sm:text-sm text-gray-600 capitalize">
-                                  Gênero: {m.genero}
-                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="inline-block text-xs sm:text-sm px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 capitalize">
+                                    {m.genero}
+                                  </span>
+                                  {m.ouvinte && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                                      👂 Ouvinte
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>

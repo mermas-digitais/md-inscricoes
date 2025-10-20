@@ -34,6 +34,10 @@ export interface DatabaseOperations {
   findOrientadorByCPF(cpf: string): Promise<any | null>;
   findEventoByName(nome: string): Promise<any | null>;
   findModalidadeByName(nome: string): Promise<any | null>;
+  findModalidadeByNameAndEvento(
+    nome: string,
+    eventoId: string
+  ): Promise<any | null>;
   createInscricaoEvento(data: any): Promise<any>;
   createParticipanteEvento(data: any): Promise<any>;
   findParticipanteEventoByCPF(cpf: string): Promise<any | null>;
@@ -577,6 +581,19 @@ class SupabaseDatabaseClient implements DatabaseOperations {
     return data || null;
   }
 
+  async findModalidadeByNameAndEvento(nome: string, eventoId: string) {
+    const { data, error } = await this.supabase
+      .from("modalidades")
+      .select("*")
+      .eq("nome", nome)
+      .eq("evento_id", eventoId)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return data || null;
+  }
+
   async createInscricaoEvento(data: any) {
     const { data: result, error } = await this.supabase
       .from("inscricoes_eventos")
@@ -603,6 +620,7 @@ class SupabaseDatabaseClient implements DatabaseOperations {
         cpf: data.cpf,
         data_nascimento: data.dataNascimento,
         genero: data.genero,
+        ouvinte: data.ouvinte === true,
       })
       .select()
       .single();
@@ -734,6 +752,10 @@ export class DatabaseClient {
 
   public async findModalidadeByName(nome: string) {
     return await this.operations.findModalidadeByName(nome);
+  }
+
+  public async findModalidadeByNameAndEvento(nome: string, eventoId: string) {
+    return await this.operations.findModalidadeByNameAndEvento(nome, eventoId);
   }
 
   public async createInscricaoEvento(data: any) {

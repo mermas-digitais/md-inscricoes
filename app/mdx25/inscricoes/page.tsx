@@ -19,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
@@ -31,6 +39,8 @@ import {
   MapPin,
   Clock,
   ChevronDown,
+  CheckCircle,
+  Edit3,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense } from "react";
@@ -144,9 +154,12 @@ const step3Schema = z.object({
   modalidade: z
     .string()
     .min(1, "Modalidade é obrigatória")
-    .refine((val) => val === "jogos" || val === "robotica", {
-      message: "Selecione uma modalidade válida",
-    }),
+    .refine(
+      (val) => val === "jogos" || val === "robotica" || val === "ouvinte",
+      {
+        message: "Selecione uma modalidade válida",
+      }
+    ),
 });
 
 const membroEquipeSchema = z.object({
@@ -162,8 +175,8 @@ const step4Schema = z.object({
     .min(2, "Nome da equipe deve ter pelo menos 2 caracteres"),
   membros_equipe: z
     .array(membroEquipeSchema)
-    .min(3, "Mínimo de 3 membros na equipe")
-    .max(5, "Máximo de 5 membros na equipe"),
+    .min(1, "Mínimo de 1 membro")
+    .max(5, "Máximo de 5 membros"),
 });
 
 function InscricaoMDX25Content() {
@@ -211,6 +224,7 @@ function InscricaoMDX25Content() {
     new Set()
   );
   const [isLoadingOrientador, setIsLoadingOrientador] = useState(false);
+  const [showOuvinteModal, setShowOuvinteModal] = useState(false);
 
   // Variável de controle do countdown - pode ser controlada via env
   const [showCountdown] = useState(
@@ -821,13 +835,18 @@ function InscricaoMDX25Content() {
         return (
           formData.modalidade &&
           (formData.modalidade === "jogos" ||
-            formData.modalidade === "robotica")
+            formData.modalidade === "robotica" ||
+            formData.modalidade === "ouvinte")
         );
       case 4:
         return (
           formData.nome_equipe &&
-          formData.membros_equipe.length >= 3 &&
-          formData.membros_equipe.length <= 5 &&
+          // Se ouvinte: mínimo 1; caso contrário 3-5
+          (formData.modalidade === "ouvinte"
+            ? formData.membros_equipe.length >= 1 &&
+              formData.membros_equipe.length <= 5
+            : formData.membros_equipe.length >= 3 &&
+              formData.membros_equipe.length <= 5) &&
           formData.membros_equipe.every(
             (membro) =>
               membro.nome &&
@@ -837,7 +856,8 @@ function InscricaoMDX25Content() {
               validarCpfUnico(membro.cpf, membro.id) &&
               !cpfsEmOutrasEquipes.has(membro.cpf)
           ) &&
-          validarRegrasGenero()
+          // Regras de gênero não se aplicam a ouvintes
+          (formData.modalidade === "ouvinte" ? true : validarRegrasGenero())
         );
       default:
         return false;
@@ -979,8 +999,8 @@ function InscricaoMDX25Content() {
                           <div className="flex items-start space-x-3">
                             <div className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></div>
                             <p className="text-gray-800 text-base font-poppins">
-                              Apenas o(a) orientador(a) da equipe deverá efetuar a
-                              inscrição e pode orientar uma ou mais equipes
+                              Apenas o(a) orientador(a) da equipe deverá efetuar
+                              a inscrição e pode orientar uma ou mais equipes
                             </p>
                           </div>
                         </div>
@@ -1082,7 +1102,7 @@ function InscricaoMDX25Content() {
                         />
                         {isLoadingOrientador && (
                           <div className="text-sm text-gray-500 text-center">
-                            Buscando dados do orientador...
+                            Carregando informações...
                           </div>
                         )}
                         <CustomInput
@@ -1144,6 +1164,15 @@ function InscricaoMDX25Content() {
                               ? step1Form.formState.errors.genero
                               : undefined
                           }
+                        />
+                        <CustomInput
+                          type="date"
+                          value={formData.data_nascimento}
+                          onChange={(e) =>
+                            handleInputChange("data_nascimento", e.target.value)
+                          }
+                          label="Data de nascimento"
+                          placeholder=""
                         />
                       </CardContent>
                     </Card>
@@ -1259,6 +1288,60 @@ function InscricaoMDX25Content() {
                                 </div>
                               </div>
                               {formData.modalidade === "robotica" && (
+                                <div className="w-6 h-6 bg-[#FF4A97] rounded-full flex items-center justify-center">
+                                  <svg
+                                    className="w-4 h-4 text-white"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {/* Opção OUVINTE */}
+                          <div
+                            className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                              formData.modalidade === "ouvinte"
+                                ? "border-[#FF4A97] bg-gradient-to-r from-[#FF4A97]/10 to-[#C769E3]/10 shadow-lg"
+                                : "border-gray-200 bg-white hover:border-[#FF4A97]/50 hover:shadow-md"
+                            }`}
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                modalidade: "ouvinte",
+                              }));
+                              step3Form.setFieldValue("modalidade", "ouvinte");
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                    formData.modalidade === "ouvinte"
+                                      ? "border-[#FF4A97] bg-[#FF4A97]"
+                                      : "border-gray-300"
+                                  }`}
+                                >
+                                  {formData.modalidade === "ouvinte" && (
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                  )}
+                                </div>
+                                <div>
+                                  <h3 className="text-xl font-bold text-[#6C2EB5] font-poppins">
+                                    OUVINTE
+                                  </h3>
+                                  <p className="text-sm text-gray-600 font-poppins">
+                                    Participar como ouvinte no evento
+                                  </p>
+                                </div>
+                              </div>
+                              {formData.modalidade === "ouvinte" && (
                                 <div className="w-6 h-6 bg-[#FF4A97] rounded-full flex items-center justify-center">
                                   <svg
                                     className="w-4 h-4 text-white"
@@ -1625,7 +1708,17 @@ function InscricaoMDX25Content() {
                     ) : currentStep < 4 ? (
                       <CustomButton
                         type="button"
-                        onClick={() => setCurrentStep(currentStep + 1)}
+                        onClick={() => {
+                          if (
+                            currentStep === 3 &&
+                            formData.modalidade === "ouvinte"
+                          ) {
+                            // Mostrar modal de confirmação para OUVINTE
+                            setShowOuvinteModal(true);
+                          } else {
+                            setCurrentStep(currentStep + 1);
+                          }
+                        }}
                         disabled={!isStepValid(currentStep)}
                         className="ml-auto"
                       >
@@ -1662,6 +1755,103 @@ function InscricaoMDX25Content() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Confirmação para OUVINTE */}
+      <Dialog open={showOuvinteModal} onOpenChange={setShowOuvinteModal}>
+        <DialogContent className="sm:max-w-[500px] border border-gray-200">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+              Confirmação de Inscrição como Ouvinte
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              Verifique os dados abaixo, pois eles aparecerão no seu certificado
+              de 20 horas complementares.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
+              <h3 className="font-semibold text-lg mb-3 text-purple-800">
+                Dados Pessoais
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Nome:</span>
+                  <span className="text-gray-900">{formData.nome}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">CPF:</span>
+                  <span className="text-gray-900">
+                    {formData.cpf.replace(
+                      /(\d{3})(\d{3})(\d{3})(\d{2})/,
+                      "$1.$2.$3-$4"
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">
+                    Data de Nascimento:
+                  </span>
+                  <span className="text-gray-900">
+                    {formData.data_nascimento
+                      ? new Date(formData.data_nascimento).toLocaleDateString(
+                          "pt-BR"
+                        )
+                      : "Não informado"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Gênero:</span>
+                  <span className="text-gray-900">{formData.genero}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-600">Escola:</span>
+                  <span className="text-gray-900">{formData.escola}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+              <h3 className="font-semibold text-lg mb-2 text-green-800">
+                Modalidade
+              </h3>
+              <div className="flex items-center gap-2">
+                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                  👂 OUVINTE
+                </div>
+                <span className="text-sm text-gray-600">
+                  Participação como ouvinte - 20 horas complementares
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <CustomButton
+              variant="secondary"
+              onClick={() => {
+                setShowOuvinteModal(false);
+                setCurrentStep(2);
+              }}
+              className="flex items-center gap-2"
+            >
+              <Edit3 className="h-4 w-4" />
+              Editar Dados
+            </CustomButton>
+            <CustomButton
+              onClick={handleSubmit}
+              disabled={isLoading}
+              isLoading={isLoading}
+              loadingText="Confirmando..."
+              className="flex items-center gap-2"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Confirmar Inscrição
+            </CustomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -89,7 +89,9 @@ export class InscricoesService {
       const curso = isMDX25
         ? data.modalidade === "jogos"
           ? "MDX25-Jogos"
-          : "MDX25-Robótica"
+          : data.modalidade === "robotica"
+          ? "MDX25-Robótica"
+          : "MDX25-Ouvinte"
         : data.escolaridade === "Ensino Fundamental 2"
         ? "Jogos"
         : "Robótica";
@@ -163,12 +165,48 @@ export class InscricoesService {
         throw new Error("Evento MDX25 não encontrado");
       }
 
-      // 3. Buscar modalidade (jogos ou robótica)
-      const modalidade = await this.dbClient.findModalidadeByName(
-        data.modalidade === "jogos" ? "JOGOS" : "ROBOTICA"
+      // 3. Buscar modalidade (jogos, robótica ou ouvinte)
+      let modalidade = await this.dbClient.findModalidadeByNameAndEvento(
+        data.modalidade === "jogos"
+          ? "JOGOS"
+          : data.modalidade === "robotica"
+          ? "ROBOTICA"
+          : "OUVINTE",
+        evento.id
       );
       if (!modalidade) {
-        throw new Error(`Modalidade ${data.modalidade} não encontrada`);
+        // Se for ouvinte e não existir, criar a modalidade automaticamente
+        if (data.modalidade === "ouvinte") {
+          try {
+            await this.dbClient.create("modalidades", {
+              nome: "OUVINTE",
+              // campos compatíveis para diferentes providers/ORMs
+              evento_id: evento.id,
+              eventoId: evento.id,
+              eventId: evento.id,
+              // NOT NULLs
+              limite_vagas: 100000,
+              vagas_ocupadas: 0,
+              ativo: true,
+            });
+            modalidade = await this.dbClient.findModalidadeByNameAndEvento(
+              "OUVINTE",
+              evento.id
+            );
+          } catch (e) {
+            // Caso falhe criar, ainda assim falhar explicitamente
+            throw new Error(
+              `Modalidade OUVINTE não encontrada ou não pôde ser criada`
+            );
+          }
+          if (!modalidade) {
+            throw new Error(
+              `Modalidade OUVINTE não encontrada ou não pôde ser criada`
+            );
+          }
+        } else {
+          throw new Error(`Modalidade ${data.modalidade} não encontrada`);
+        }
       }
 
       // 4. Criar inscrição no evento
@@ -180,14 +218,34 @@ export class InscricoesService {
         status: status,
       });
 
-      // 5. Criar participantes (membros da equipe)
-      for (const membro of data.membros_equipe) {
+      // 5. Criar participantes (membros da equipe) ou um único ouvinte
+      const participantes =
+        data.modalidade === "ouvinte"
+          ? [
+              {
+                nome: data.nome,
+                cpf: data.cpf?.replace(/\D/g, ""),
+                data_nascimento: data.data_nascimento,
+                genero: data.genero,
+                ouvinte: true,
+              },
+            ]
+          : (data.membros_equipe || []).map((m: any) => ({
+              nome: m.nome,
+              cpf: m.cpf,
+              data_nascimento: m.data_nascimento,
+              genero: m.genero,
+              ouvinte: false,
+            }));
+
+      for (const membro of participantes) {
         await this.dbClient.createParticipanteEvento({
           inscricaoId: inscricaoEvento.id,
           nome: membro.nome,
           cpf: membro.cpf,
           dataNascimento: membro.data_nascimento,
           genero: membro.genero,
+          ouvinte: membro.ouvinte,
         });
       }
 
