@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ModuleHeader } from "@/components/module-header";
+import { ExportModal, type ExportConfig } from "@/components/export-modal";
+import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export-utils";
 import {
   Calendar,
   ArrowLeft,
@@ -112,6 +114,7 @@ const DetalheEventoPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("inscricoes");
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Estados de filtros
   const [activeFilters, setActiveFilters] = useState({
@@ -307,45 +310,44 @@ const DetalheEventoPage: React.FC = () => {
     });
   };
 
-  // Exportar dados
-  const handleExport = () => {
+  // Exportar dados - abre modal
+  const handleExportClick = () => {
+    setShowExportModal(true);
+  };
+
+  // Processar exportação com configuração do modal
+  const handleExport = async (config: ExportConfig) => {
     if (!evento) return;
 
-    const dataToExport = filteredInscricoes.map((inscricao) => ({
-      "Nome da Equipe": inscricao.nomeEquipe || inscricao.equipe_nome || "",
-      Modalidade: inscricao.modalidade?.nome || "",
-      Status: inscricao.status,
-      "Orientador - Nome": inscricao.orientador?.nome || "",
-      "Orientador - Email": inscricao.orientador?.email || "",
-      "Orientador - Telefone": inscricao.orientador?.telefone || "",
-      "Orientador - Escola": inscricao.orientador?.escola || "",
-      "Número de Participantes": inscricao.participantesEventos?.length || 0,
-      Observações: inscricao.observacoes || "",
-    }));
+    const dataToExport = config.includeFiltered
+      ? filteredInscricoes
+      : inscricoes;
 
-    const csv = [
-      Object.keys(dataToExport[0] || {}).join(","),
-      ...dataToExport.map((row) =>
-        Object.values(row)
-          .map((value) => `"${value}"`)
-          .join(",")
-      ),
-    ].join("\n");
+    try {
+      switch (config.format) {
+        case "csv":
+          exportToCSV(dataToExport, config, evento.nome);
+          break;
+        case "excel":
+          await exportToExcel(dataToExport, config, evento.nome);
+          break;
+        case "pdf":
+          await exportToPDF(dataToExport, config, evento.nome);
+          break;
+      }
 
-    const blob = new Blob(["\ufeff" + csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${evento.nome}_inscricoes_${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
-    link.click();
-
-    toast({
-      title: "Sucesso",
-      description: "Dados exportados com sucesso!",
-    });
+      toast({
+        title: "Sucesso",
+        description: `Dados exportados com sucesso em formato ${config.format.toUpperCase()}!`,
+      });
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao exportar dados. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Calcular estatísticas
@@ -519,7 +521,7 @@ const DetalheEventoPage: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExport}
+              onClick={handleExportClick}
               disabled={filteredInscricoes.length === 0}
               className="border-green-200 text-green-600 hover:bg-green-50"
             >
@@ -1290,6 +1292,19 @@ const DetalheEventoPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Exportação */}
+      <ExportModal
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+        evento={{
+          id: evento.id,
+          nome: evento.nome,
+        }}
+        inscricoes={inscricoes}
+        filteredInscricoes={filteredInscricoes}
+        onExport={handleExport}
+      />
     </div>
   );
 };

@@ -251,12 +251,22 @@ class PrismaDatabaseClient implements DatabaseOperations {
     return await this.prisma.modalidades.findFirst({ where: { nome } });
   }
 
+  async findModalidadeByNameAndEvento(nome: string, eventoId: string) {
+    return await this.prisma.modalidades.findFirst({
+      where: {
+        nome,
+        eventoId,
+      },
+    });
+  }
+
   async createInscricaoEvento(data: any) {
     return await this.prisma.inscricoesEventos.create({
       data: {
         eventoId: data.eventoId,
         modalidadeId: data.modalidadeId,
         orientadorId: data.orientadorId,
+        nomeEquipe: data.nomeEquipe || "",
         status: data.status ?? "PENDENTE",
         observacoes: data.observacoes ?? null,
         createdAt: new Date(),
@@ -274,6 +284,7 @@ class PrismaDatabaseClient implements DatabaseOperations {
         dataNascimento: new Date(data.dataNascimento),
         email: data.email ?? null,
         genero: data.genero,
+        ouvinte: data.ouvinte === true,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -823,6 +834,7 @@ class SupabaseDatabaseClient implements DatabaseOperations {
  */
 export class DatabaseClient {
   private static instance: DatabaseClient;
+  private static initPromise: Promise<void> | null = null;
   private operations!: DatabaseOperations;
   private provider!: DatabaseProvider;
 
@@ -833,27 +845,44 @@ export class DatabaseClient {
   public static async getInstance(): Promise<DatabaseClient> {
     if (!DatabaseClient.instance) {
       DatabaseClient.instance = new DatabaseClient();
-      await DatabaseClient.instance.initialize();
+      DatabaseClient.initPromise = DatabaseClient.instance.initialize();
     }
+
+    // Aguardar inicialização se ainda estiver em progresso
+    if (DatabaseClient.initPromise) {
+      await DatabaseClient.initPromise;
+      DatabaseClient.initPromise = null;
+    }
+
     return DatabaseClient.instance;
   }
 
   private async initialize() {
-    this.provider = await dbManager.getActiveProvider();
+    try {
+      this.provider = await dbManager.getActiveProvider();
 
-    if (this.provider === "prisma") {
-      this.operations = new PrismaDatabaseClient();
-    } else {
-      this.operations = new SupabaseDatabaseClient();
+      if (this.provider === "prisma") {
+        this.operations = new PrismaDatabaseClient();
+      } else {
+        this.operations = new SupabaseDatabaseClient();
+      }
+
+      console.log(`🗄️ DatabaseClient inicializado com ${this.provider}`);
+    } catch (error) {
+      console.error("❌ Erro ao inicializar DatabaseClient:", error);
+      throw error;
     }
-
-    console.log(`🗄️ DatabaseClient inicializado com ${this.provider}`);
   }
 
   /**
    * Obtém o provedor atual
    */
   public getProvider(): DatabaseProvider {
+    if (!this.provider) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return this.provider;
   }
 
@@ -955,30 +984,65 @@ export class DatabaseClient {
   }
 
   public async query(tableName: string, options?: any) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.query(tableName, options);
   }
 
   public async create(tableName: string, data: any) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.create(tableName, data);
   }
 
   public async update(tableName: string, args: { where: any; data: any }) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.update(tableName, args);
   }
 
   public async updateMany(tableName: string, args: { where: any; data: any }) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.updateMany(tableName, args);
   }
 
   public async delete(tableName: string, args: { where: any }) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.delete(tableName, args);
   }
 
   public async deleteMany(tableName: string, args: { where: any }) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.deleteMany(tableName, args);
   }
 
   public async executeQuery(query: string, params?: any[]) {
+    if (!this.operations) {
+      throw new Error(
+        "DatabaseClient não inicializado. Chame getInstance() primeiro."
+      );
+    }
     return await this.operations.executeQuery(query, params);
   }
 }
