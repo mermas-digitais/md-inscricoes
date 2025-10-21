@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleHeader } from "@/components/module-header";
+import { SESSION_TIMEOUT } from "@/lib/constants/session";
 
 interface Curso {
   id: string;
@@ -107,9 +108,8 @@ function CursosPage() {
         try {
           const { email, nome, role, timestamp } = JSON.parse(sessionData);
           const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
 
-          if (now - timestamp < sessionTimeout) {
+          if (now - timestamp < SESSION_TIMEOUT) {
             setIsAuthenticated(true);
             setMonitorName(nome || "");
             setMonitorRole(role || "MONITOR");

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { SESSION_TIMEOUT } from "@/lib/constants/session";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,12 +44,20 @@ export function ModuleHeader({
   const [monitorRole, setMonitorRole] = useState<"MONITOR" | "ADM">("MONITOR");
   const [sessionTimeLeft, setSessionTimeLeft] = useState<number>(0);
 
+  // Função para formatar tempo restante da sessão
   const formatTimeLeft = (timeInMs: number): string => {
-    const minutes = Math.floor(timeInMs / 60000);
-    const seconds = Math.floor((timeInMs % 60000) / 1000);
-    return `${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
+    if (!Number.isFinite(timeInMs) || timeInMs <= 0) return "0min";
+
+    const totalMinutes = Math.floor(timeInMs / 60000);
+
+    if (totalMinutes < 60) {
+      return `${totalMinutes}min`;
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return `${hours}h${minutes.toString().padStart(2, "0")}min`;
   };
 
   // Verificar sessão e atualizar timer
@@ -59,8 +68,7 @@ export function ModuleHeader({
         try {
           const { email, nome, role, timestamp } = JSON.parse(sessionData);
           const now = Date.now();
-          const SESSION_DURATION = 30 * 60 * 1000; // 30 minutos
-          const timeLeft = SESSION_DURATION - (now - timestamp);
+          const timeLeft = SESSION_TIMEOUT - (now - timestamp);
 
           if (timeLeft <= 0) {
             handleLogout();

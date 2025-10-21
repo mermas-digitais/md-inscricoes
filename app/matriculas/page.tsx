@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CodeInput } from "@/components/ui/code-input";
 import { ModuleHeader } from "@/components/module-header";
+import { SESSION_TIMEOUT } from "@/lib/constants/session";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,8 +138,7 @@ function MonitorPage() {
         if (sessionData) {
           const { timestamp } = JSON.parse(sessionData);
           const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
-          if (now - timestamp < sessionTimeout) {
+          if (now - timestamp < SESSION_TIMEOUT) {
             return "dashboard";
           }
         }
@@ -204,8 +204,7 @@ function MonitorPage() {
         if (sessionData) {
           const { timestamp } = JSON.parse(sessionData);
           const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
-          return now - timestamp < sessionTimeout;
+          return now - timestamp < SESSION_TIMEOUT;
         }
       } catch (error) {
         console.error("Erro ao verificar autenticação do localStorage:", error);
@@ -283,10 +282,9 @@ function MonitorPage() {
           } = JSON.parse(sessionData);
 
           const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000; // 30 minutos em millisegundos
 
           // Verificar se a sessão ainda é válida
-          if (now - timestamp < sessionTimeout) {
+          if (now - timestamp < SESSION_TIMEOUT) {
             setIsAuthenticated(true);
             setEmail(sessionEmail);
             setMonitorName(sessionNome || "");
@@ -330,9 +328,11 @@ function MonitorPage() {
         } = JSON.parse(sessionData);
 
         const now = Date.now();
-        const sessionTimeout = 30 * 60 * 1000;
 
-        if (now - timestamp < sessionTimeout && sessionEmail === monitorEmail) {
+        if (
+          now - timestamp < SESSION_TIMEOUT &&
+          sessionEmail === monitorEmail
+        ) {
           setIsAuthenticated(true);
           setMonitorName(sessionNome || "");
           setMonitorRole(sessionRole || "MONITOR");
@@ -368,8 +368,7 @@ function MonitorPage() {
           try {
             const { timestamp } = JSON.parse(sessionData);
             const now = Date.now();
-            const sessionTimeout = 30 * 60 * 1000; // 30 minutos
-            const timeLeft = Math.max(0, sessionTimeout - (now - timestamp));
+            const timeLeft = Math.max(0, SESSION_TIMEOUT - (now - timestamp));
 
             if (timeLeft <= 0) {
               // Sessão expirada

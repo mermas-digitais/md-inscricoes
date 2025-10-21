@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Header } from "./header";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { SESSION_TIMEOUT } from "@/lib/constants/session";
 
 interface ConditionalLayoutProps {
   children: ReactNode;
@@ -25,10 +26,9 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       if (sessionData) {
         const { timestamp } = JSON.parse(sessionData);
         const now = Date.now();
-        const sessionTimeout = 30 * 60 * 1000; // 30 minutos
 
         // Se há sessão válida e estamos em rotas que têm header próprio
-        if (now - timestamp < sessionTimeout) {
+        if (now - timestamp < SESSION_TIMEOUT) {
           return (
             pathname === "/matriculas" ||
             pathname === "/painel" ||

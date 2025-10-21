@@ -14,6 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { ModuleHeader } from "@/components/module-header";
 import { ExportModal, type ExportConfig } from "@/components/export-modal";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export-utils";
+import { SESSION_TIMEOUT } from "@/lib/constants/session";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Calendar,
   ArrowLeft,
@@ -42,6 +51,10 @@ import {
   TrendingUp,
   PieChart,
   X,
+  MoreVertical,
+  FileSpreadsheet,
+  FileText,
+  Copy,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -113,6 +126,7 @@ const DetalheEventoPage: React.FC = () => {
   // Estados de controle
   const [viewMode, setViewMode] = useState<ViewMode>("inscricoes");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -123,6 +137,11 @@ const DetalheEventoPage: React.FC = () => {
     escola: "",
   });
 
+  // Estados de ordenação
+  const [sortBy, setSortBy] = useState<
+    "recente" | "antigo" | "equipe" | "modalidade" | "participantes"
+  >("recente");
+
   useEffect(() => {
     const checkSession = () => {
       const sessionData = localStorage.getItem("monitorSession");
@@ -130,8 +149,7 @@ const DetalheEventoPage: React.FC = () => {
         try {
           const { timestamp } = JSON.parse(sessionData);
           const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
-          if (now - timestamp < sessionTimeout) {
+          if (now - timestamp < SESSION_TIMEOUT) {
             setIsAuthenticated(true);
             loadEvento();
             return;
@@ -145,6 +163,15 @@ const DetalheEventoPage: React.FC = () => {
     checkSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, eventoId]);
+
+  // Debounce para a busca - atualiza após 300ms sem digitação
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const loadEvento = async () => {
     try {
@@ -187,15 +214,15 @@ const DetalheEventoPage: React.FC = () => {
     });
   };
 
-  // Função de normalização de texto para busca
-  const normalizeText = (text: string) => {
+  // Função de normalização de texto para busca (memoizada)
+  const normalizeText = useCallback((text: string) => {
     return text
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
-  };
+  }, []);
 
-  // Aplicar filtros
+  // Aplicar filtros (otimizado)
   const applyFilters = useCallback(
     (
       data: InscricaoEvento[],
@@ -219,7 +246,7 @@ const DetalheEventoPage: React.FC = () => {
       }
 
       // Filtro por escola
-      if (filters.escola) {
+      if (filters.escola.trim()) {
         const normalizedEscola = normalizeText(filters.escola);
         filtered = filtered.filter((inscricao) =>
           normalizeText(inscricao.orientador?.escola || "").includes(
@@ -228,10 +255,13 @@ const DetalheEventoPage: React.FC = () => {
         );
       }
 
-      // Busca por texto
+      // Busca por texto (otimizada)
       if (searchText.trim()) {
         const normalizedSearch = normalizeText(searchText);
+        const searchCpf = searchText.replace(/\D/g, ""); // Remove não-dígitos para busca de CPF
+
         filtered = filtered.filter((inscricao) => {
+          // Busca em campos principais
           const nomeEquipe = normalizeText(
             inscricao.nomeEquipe || inscricao.equipe_nome || ""
           );
@@ -244,44 +274,90 @@ const DetalheEventoPage: React.FC = () => {
           const escola = normalizeText(inscricao.orientador?.escola || "");
           const modalidade = normalizeText(inscricao.modalidade?.nome || "");
 
-          // Busca nos participantes
-          const participantesMatch = inscricao.participantesEventos?.some(
-            (p) =>
-              normalizeText(p.nome).includes(normalizedSearch) ||
-              p.cpf.includes(searchText.replace(/\D/g, ""))
-          );
-
-          return (
+          // Verifica campos principais
+          if (
             nomeEquipe.includes(normalizedSearch) ||
             orientadorNome.includes(normalizedSearch) ||
             orientadorEmail.includes(normalizedSearch) ||
             escola.includes(normalizedSearch) ||
-            modalidade.includes(normalizedSearch) ||
-            participantesMatch
-          );
+            modalidade.includes(normalizedSearch)
+          ) {
+            return true;
+          }
+
+          // Busca nos participantes (nome e CPF)
+          if (inscricao.participantesEventos?.length > 0) {
+            return inscricao.participantesEventos.some((p) => {
+              const nomeParticipante = normalizeText(p.nome);
+              const cpfParticipante = p.cpf.replace(/\D/g, "");
+              return (
+                nomeParticipante.includes(normalizedSearch) ||
+                (searchCpf && cpfParticipante.includes(searchCpf))
+              );
+            });
+          }
+
+          return false;
         });
       }
 
       return filtered;
     },
-    []
+    [normalizeText]
   );
 
-  // Handler de busca
-  const handleSearch = useCallback(
-    (term: string) => {
-      setSearchTerm(term);
-      const filtered = applyFilters(inscricoes, activeFilters, term);
-      setFilteredInscricoes(filtered);
-    },
-    [inscricoes, activeFilters, applyFilters]
-  );
-
-  // Aplicar filtros quando mudam
+  // Aplicar filtros quando mudam (usando debounced search)
   useEffect(() => {
-    const filtered = applyFilters(inscricoes, activeFilters, searchTerm);
+    const filtered = applyFilters(
+      inscricoes,
+      activeFilters,
+      debouncedSearchTerm
+    );
     setFilteredInscricoes(filtered);
-  }, [activeFilters, inscricoes, searchTerm, applyFilters]);
+  }, [activeFilters, inscricoes, debouncedSearchTerm, applyFilters]);
+
+  // Função de ordenação
+  const sortInscricoes = useCallback(
+    (data: InscricaoEvento[]) => {
+      const sorted = [...data];
+      switch (sortBy) {
+        case "recente":
+          return sorted.sort(
+            (a, b) =>
+              new Date(b.createdAt || "").getTime() -
+              new Date(a.createdAt || "").getTime()
+          );
+        case "antigo":
+          return sorted.sort(
+            (a, b) =>
+              new Date(a.createdAt || "").getTime() -
+              new Date(b.createdAt || "").getTime()
+          );
+        case "equipe":
+          return sorted.sort((a, b) =>
+            (a.nomeEquipe || a.equipe_nome || "").localeCompare(
+              b.nomeEquipe || b.equipe_nome || ""
+            )
+          );
+        case "modalidade":
+          return sorted.sort((a, b) =>
+            (a.modalidade?.nome || "").localeCompare(b.modalidade?.nome || "")
+          );
+        case "participantes":
+          return sorted.sort(
+            (a, b) =>
+              (b.participantesEventos?.length || 0) -
+              (a.participantesEventos?.length || 0)
+          );
+        default:
+          return sorted;
+      }
+    },
+    [sortBy]
+  );
+
+  // Aplicar ordenação nas inscrições filtradas
+  const sortedInscricoes = sortInscricoes(filteredInscricoes);
 
   // Limpar filtros
   const clearFilters = () => {
@@ -678,139 +754,337 @@ const DetalheEventoPage: React.FC = () => {
             {/* Barra de Busca e Filtros */}
             <Card className="bg-white border-0 shadow-sm mb-6">
               <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  {/* Busca */}
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar por equipe, orientador, escola, participante..."
-                      value={searchTerm}
-                      onChange={(e) => handleSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Botões de Filtro */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowFilters(!showFilters)}
-                      className={`${
-                        showFilters || hasActiveFilters
-                          ? "bg-purple-50 border-purple-300 text-purple-700"
-                          : ""
-                      }`}
-                    >
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filtros
-                      {hasActiveFilters && (
-                        <span className="ml-2 bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                          {activeFilters.status.length +
-                            activeFilters.modalidade.length +
-                            (activeFilters.escola ? 1 : 0)}
-                        </span>
-                      )}
-                    </Button>
-                    {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Limpar
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Painel de Filtros */}
-                {showFilters && (
-                  <div className="mt-6 pt-6 border-t border-gray-100 space-y-4">
-                    {/* Filtro por Status */}
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Status
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {["INSCRITA", "CONFIRMADA", "CANCELADA"].map((st) => (
-                          <button
-                            key={st}
-                            onClick={() => toggleFilter("status", st)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                              activeFilters.status.includes(st)
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                          >
-                            {st}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Filtro por Modalidade */}
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Modalidade
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {evento.modalidades.map((mod) => (
-                          <button
-                            key={mod.id}
-                            onClick={() => toggleFilter("modalidade", mod.id)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                              activeFilters.modalidade.includes(mod.id)
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                          >
-                            {mod.nome}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Filtro por Escola */}
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Escola
-                      </label>
+                <div className="flex flex-col gap-4">
+                  {/* Linha 1: Busca e Botões */}
+                  <div className="flex flex-col md:flex-row gap-4">
+                    {/* Busca */}
+                    <div className="flex-1 relative">
+                      <Search
+                        className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors ${
+                          searchTerm !== debouncedSearchTerm
+                            ? "text-purple-500 animate-pulse"
+                            : "text-gray-400"
+                        }`}
+                      />
                       <input
                         type="text"
-                        placeholder="Digite o nome da escola..."
-                        value={activeFilters.escola}
-                        onChange={(e) =>
-                          setActiveFilters((prev) => ({
-                            ...prev,
-                            escola: e.target.value,
-                          }))
-                        }
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Buscar por equipe, orientador, escola, participante, CPF..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                       />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm("")}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Botões de Filtro e Ordenação */}
+                    <div className="flex gap-2 flex-wrap">
+                      {/* Ordenação */}
+                      <select
+                        value={sortBy}
+                        onChange={(e) =>
+                          setSortBy(
+                            e.target.value as
+                              | "recente"
+                              | "antigo"
+                              | "equipe"
+                              | "modalidade"
+                              | "participantes"
+                          )
+                        }
+                        className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        <option value="recente">📅 Mais recentes</option>
+                        <option value="antigo">📆 Mais antigas</option>
+                        <option value="equipe">🔤 Nome da equipe</option>
+                        <option value="modalidade">📚 Modalidade</option>
+                        <option value="participantes">
+                          👥 Nº de participantes
+                        </option>
+                      </select>
+
+                      {/* Botão de Filtros */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`font-medium transition-all ${
+                          showFilters || hasActiveFilters
+                            ? "bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
+                            : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        <Filter className="w-4 h-4 mr-2" />
+                        Filtros
+                        {hasActiveFilters && (
+                          <span className="ml-2 bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                            {activeFilters.status.length +
+                              activeFilters.modalidade.length +
+                              (activeFilters.escola ? 1 : 0)}
+                          </span>
+                        )}
+                      </Button>
+
+                      {/* Botão Limpar Filtros */}
+                      {hasActiveFilters && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearFilters}
+                          className="text-gray-600 hover:text-red-600 hover:bg-red-50 font-medium transition-colors"
+                        >
+                          <X className="w-4 h-4 mr-2" />
+                          Limpar
+                        </Button>
+                      )}
+
+                      {/* Menu de Ações */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 font-medium transition-all"
+                          >
+                            <MoreVertical className="w-4 h-4 mr-2" />
+                            Ações
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel className="text-xs font-semibold text-gray-500 uppercase">
+                            Exportar dados
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onClick={handleExportClick}
+                            className="cursor-pointer"
+                          >
+                            <Download className="w-4 h-4 mr-2 text-green-600" />
+                            <span className="font-medium">
+                              Exportar personalizado
+                            </span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              if (evento) {
+                                const config: ExportConfig = {
+                                  format: "csv",
+                                  fields: [
+                                    "equipe",
+                                    "orientador",
+                                    "participantes",
+                                    "status",
+                                  ],
+                                  includeFiltered: false,
+                                  groupBy: "none",
+                                  includeSummary: false,
+                                  includeParticipantDetails: true,
+                                };
+                                exportToCSV(inscricoes, config, evento.nome);
+                                toast({
+                                  title: "Sucesso",
+                                  description:
+                                    "Exportação rápida CSV concluída!",
+                                });
+                              }
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <FileSpreadsheet className="w-4 h-4 mr-2 text-blue-600" />
+                            <span className="font-medium">
+                              Exportar CSV rápido
+                            </span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuLabel className="text-xs font-semibold text-gray-500 uppercase">
+                            Outras ações
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              loadEvento();
+                              toast({
+                                title: "Atualizado",
+                                description: "Dados recarregados com sucesso!",
+                              });
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2 text-purple-600" />
+                            <span className="font-medium">Atualizar dados</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const url = window.location.href;
+                              navigator.clipboard.writeText(url);
+                              toast({
+                                title: "Copiado",
+                                description:
+                                  "Link copiado para a área de transferência!",
+                              });
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Copy className="w-4 h-4 mr-2 text-gray-600" />
+                            <span className="font-medium">Copiar link</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                )}
 
-                {/* Contador de Resultados */}
-                <div className="mt-4 text-sm text-gray-600">
-                  {searchTerm || hasActiveFilters ? (
-                    <p>
-                      <span className="font-semibold text-purple-600">
-                        {filteredInscricoes.length}
-                      </span>{" "}
-                      de {inscricoes.length} inscrições encontradas
-                    </p>
-                  ) : (
-                    <p>
-                      Total:{" "}
-                      <span className="font-semibold">{inscricoes.length}</span>{" "}
-                      inscrições
-                    </p>
+                  {/* Painel de Filtros */}
+                  {showFilters && (
+                    <div className="mt-6 pt-6 border-t border-gray-200 space-y-5">
+                      {/* Filtro por Status */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block">
+                          Status
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {["INSCRITA", "CONFIRMADA", "CANCELADA"].map((st) => {
+                            const count = inscricoes.filter(
+                              (i) => i.status === st
+                            ).length;
+                            return (
+                              <button
+                                key={st}
+                                onClick={() => toggleFilter("status", st)}
+                                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 border-2 ${
+                                  activeFilters.status.includes(st)
+                                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                                    : "bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50"
+                                }`}
+                              >
+                                {st}
+                                <span
+                                  className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                                    activeFilters.status.includes(st)
+                                      ? "bg-purple-500 text-white"
+                                      : "bg-gray-100 text-gray-600"
+                                  }`}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Filtro por Modalidade */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block">
+                          Modalidade
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {evento.modalidades.map((mod) => {
+                            const count = inscricoes.filter(
+                              (i) => i.modalidade.id === mod.id
+                            ).length;
+                            return (
+                              <button
+                                key={mod.id}
+                                onClick={() =>
+                                  toggleFilter("modalidade", mod.id)
+                                }
+                                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 border-2 ${
+                                  activeFilters.modalidade.includes(mod.id)
+                                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                                    : "bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50"
+                                }`}
+                              >
+                                {mod.nome}
+                                <span
+                                  className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                                    activeFilters.modalidade.includes(mod.id)
+                                      ? "bg-purple-500 text-white"
+                                      : "bg-gray-100 text-gray-600"
+                                  }`}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Filtro por Escola */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block">
+                          Escola
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Digite o nome da escola..."
+                          value={activeFilters.escola}
+                          onChange={(e) =>
+                            setActiveFilters((prev) => ({
+                              ...prev,
+                              escola: e.target.value,
+                            }))
+                          }
+                          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white hover:border-purple-300 transition-colors"
+                        />
+                      </div>
+                    </div>
                   )}
+
+                  {/* Contador de Resultados */}
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <div className="text-gray-600">
+                      {searchTerm || hasActiveFilters ? (
+                        <p className="flex items-center gap-2">
+                          <Search className="w-4 h-4 text-purple-600" />
+                          <span className="font-semibold text-purple-600">
+                            {filteredInscricoes.length}
+                          </span>{" "}
+                          de{" "}
+                          <span className="font-semibold">
+                            {inscricoes.length}
+                          </span>{" "}
+                          inscrições encontradas
+                          {searchTerm !== debouncedSearchTerm && (
+                            <span className="text-xs text-gray-400 ml-2 animate-pulse">
+                              buscando...
+                            </span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-gray-500" />
+                          Total:{" "}
+                          <span className="font-semibold">
+                            {inscricoes.length}
+                          </span>{" "}
+                          inscrições
+                        </p>
+                      )}
+                    </div>
+
+                    {filteredInscricoes.length > 0 && (
+                      <div className="text-gray-500 text-xs flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Ordenado por:{" "}
+                        {sortBy === "recente"
+                          ? "Mais recentes"
+                          : sortBy === "antigo"
+                          ? "Mais antigas"
+                          : sortBy === "equipe"
+                          ? "Nome da equipe"
+                          : sortBy === "modalidade"
+                          ? "Modalidade"
+                          : "Nº de participantes"}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -818,7 +1092,7 @@ const DetalheEventoPage: React.FC = () => {
             {/* Lista de Inscrições */}
             <Card className="bg-white border-0 shadow-lg">
               <CardContent className="pt-6">
-                {filteredInscricoes.length === 0 ? (
+                {sortedInscricoes.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 text-lg">
@@ -826,55 +1100,98 @@ const DetalheEventoPage: React.FC = () => {
                         ? "Nenhuma inscrição encontrada com os filtros aplicados"
                         : "Nenhuma inscrição realizada ainda"}
                     </p>
+                    {(searchTerm || hasActiveFilters) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="mt-4"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Limpar filtros
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredInscricoes.map((inscricao) => {
+                    {sortedInscricoes.map((inscricao) => {
                       const isExpanded = expandedCards.has(inscricao.id);
+                      const statusColors = {
+                        INSCRITA:
+                          "bg-green-100 text-green-800 border-green-200",
+                        CONFIRMADA: "bg-blue-100 text-blue-800 border-blue-200",
+                        CANCELADA: "bg-red-100 text-red-800 border-red-200",
+                      };
+                      const numParticipantes =
+                        inscricao.participantesEventos?.length || 0;
+
                       return (
                         <div
                           key={inscricao.id}
-                          className="bg-white rounded-xl shadow-md border border-gray-100 transition-all duration-200 overflow-hidden hover:shadow-lg"
+                          className={`bg-white rounded-xl shadow-md border transition-all duration-200 overflow-hidden hover:shadow-xl ${
+                            isExpanded
+                              ? "border-purple-200 ring-2 ring-purple-100"
+                              : "border-gray-100"
+                          }`}
                         >
                           {/* Header do Card - Clicável */}
                           <div
-                            className="flex items-center justify-between px-4 py-3 cursor-pointer select-none group hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200"
+                            className="flex items-center justify-between px-5 py-4 cursor-pointer select-none group hover:bg-gradient-to-r hover:from-blue-50/40 hover:to-purple-50/40 transition-all duration-200"
                             onClick={() => toggleCardExpansion(inscricao.id)}
                           >
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {/* Avatar com inicial */}
-                              <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span className="text-blue-700 font-bold text-sm">
-                                  {(
-                                    inscricao.nomeEquipe ||
-                                    inscricao.orientador?.nome ||
-                                    "E"
-                                  )
-                                    .charAt(0)
-                                    .toUpperCase()}
-                                </span>
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              {/* Avatar com inicial e badge */}
+                              <div className="relative flex-shrink-0">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center ring-2 ring-white shadow-sm">
+                                  <span className="text-blue-700 font-bold text-base">
+                                    {(
+                                      inscricao.nomeEquipe ||
+                                      inscricao.equipe_nome ||
+                                      inscricao.orientador?.nome ||
+                                      "E"
+                                    )
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </span>
+                                </div>
+                                {/* Badge de participantes */}
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center ring-2 ring-white">
+                                  <span className="text-white font-bold text-xs">
+                                    {numParticipantes}
+                                  </span>
+                                </div>
                               </div>
 
                               {/* Informações principais */}
                               <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-base text-gray-900 truncate">
+                                <div className="font-semibold text-base text-gray-900 truncate mb-1">
                                   {inscricao.nomeEquipe ||
-                                    inscricao.orientador?.nome ||
-                                    "Equipe"}
+                                    inscricao.equipe_nome ||
+                                    "Sem nome"}
                                 </div>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                                    <GraduationCap className="w-3.5 h-3.5" />
+                                    {inscricao.orientador?.nome ||
+                                      "Sem orientador"}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    •
+                                  </span>
                                   <span className="text-xs text-blue-600 font-medium bg-blue-50 rounded px-2 py-0.5 border border-blue-200">
                                     {inscricao.modalidade?.nome}
                                   </span>
-                                  <span className="text-xs text-gray-500">
-                                    {inscricao.participantesEventos?.length ||
-                                      0}{" "}
-                                    participante
-                                    {(inscricao.participantesEventos?.length ||
-                                      0) !== 1
-                                      ? "s"
-                                      : ""}
-                                  </span>
+                                  {inscricao.orientador?.escola && (
+                                    <>
+                                      <span className="text-xs text-gray-400">
+                                        •
+                                      </span>
+                                      <span className="text-xs text-gray-600 flex items-center gap-1 truncate max-w-xs">
+                                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                                        {inscricao.orientador.escola}
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -882,21 +1199,34 @@ const DetalheEventoPage: React.FC = () => {
                             {/* Status e ícone */}
                             <div className="flex items-center gap-3 flex-shrink-0">
                               <Badge
-                                className={`text-xs ${
-                                  inscricao.status === "INSCRITA"
-                                    ? "bg-green-100 text-green-800"
-                                    : inscricao.status === "CONFIRMADA"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-gray-100 text-gray-800"
+                                className={`text-xs font-semibold px-3 py-1 border ${
+                                  statusColors[
+                                    inscricao.status as keyof typeof statusColors
+                                  ] ||
+                                  "bg-gray-100 text-gray-800 border-gray-200"
                                 }`}
                               >
-                                {inscricao.status}
+                                {inscricao.status === "INSCRITA"
+                                  ? "📝 Inscrita"
+                                  : inscricao.status === "CONFIRMADA"
+                                  ? "✅ Confirmada"
+                                  : "❌ Cancelada"}
                               </Badge>
-                              <Eye
-                                className={`w-5 h-5 text-gray-400 transition-transform duration-200 group-hover:text-blue-600 ${
-                                  isExpanded ? "rotate-180" : ""
+                              <div
+                                className={`p-2 rounded-lg transition-all ${
+                                  isExpanded
+                                    ? "bg-purple-100"
+                                    : "bg-gray-100 group-hover:bg-purple-50"
                                 }`}
-                              />
+                              >
+                                <Eye
+                                  className={`w-5 h-5 transition-all duration-200 ${
+                                    isExpanded
+                                      ? "text-purple-600 rotate-180"
+                                      : "text-gray-400 group-hover:text-purple-600"
+                                  }`}
+                                />
+                              </div>
                             </div>
                           </div>
 

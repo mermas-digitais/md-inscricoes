@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SESSION_TIMEOUT } from "@/lib/constants/session";
 import {
   Dialog,
   DialogContent,
@@ -117,9 +118,8 @@ export default function AulaFrequenciaPage() {
         try {
           const { email, nome, role, timestamp } = JSON.parse(sessionData);
           const now = Date.now();
-          const sessionTimeout = 30 * 60 * 1000; // 30 minutos
 
-          if (now - timestamp < sessionTimeout) {
+          if (now - timestamp < SESSION_TIMEOUT) {
             setIsAuthenticated(true);
             setMonitorName(nome || "");
             setMonitorRole(role || "MONITOR");
