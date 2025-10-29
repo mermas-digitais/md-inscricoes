@@ -67,6 +67,7 @@ import {
   MoreVertical,
   FileDown,
   Filter,
+  Award,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ModalNovaInscricao } from "@/components/ui/modal-nova-inscricao";
@@ -74,6 +75,7 @@ import { ModalNovoMonitor } from "@/components/ui/modal-novo-monitor";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { ExportModal } from "@/components/ui/export-modal";
 import { EmailModal } from "@/components/ui/email-modal";
+import { CertificateModal } from "@/components/ui/certificate-modal";
 
 interface Inscricao {
   id: string;
@@ -239,6 +241,7 @@ function MonitorPage() {
   const [isModalNovoMonitorOpen, setIsModalNovoMonitorOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
 
   // Estados para filtros
   const [showFilters, setShowFilters] = useState(false);
@@ -2232,6 +2235,23 @@ function MonitorPage() {
                             </div>
                           </div>
                         </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() => setIsCertificateModalOpen(true)}
+                          className="flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 hover:text-amber-700 transition-all duration-200 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-amber-100 to-orange-100 flex items-center justify-center shadow-sm">
+                            <Award className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">
+                              Enviar Certificados
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Certificados personalizados em PDF
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
                       </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -3019,6 +3039,12 @@ function MonitorPage() {
         onClose={() => setIsEmailModalOpen(false)}
         allInscricoes={allInscricoes}
         monitorName={monitorName}
+      />
+
+      <CertificateModal
+        isOpen={isCertificateModalOpen}
+        onClose={() => setIsCertificateModalOpen(false)}
+        selectedAlunas={filteredInscricoes}
       />
     </div>
   );
