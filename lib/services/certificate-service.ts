@@ -110,7 +110,7 @@ export class CertificateService {
       }
 
       // Buscar carga horária dos cursos para cada inscrição
-      const cursosNomes = [...new Set(inscricoes.map((i) => i.curso))];
+      const cursosNomes = [...new Set(inscricoes.map((i: any) => i.curso))];
       const { data: cursos, error: cursosError } = await this.supabase
         .from("cursos")
         .select("nome_curso, carga_horaria")
@@ -123,7 +123,7 @@ export class CertificateService {
       // Criar mapa de curso -> carga horária
       const cargaHorariaMap = new Map();
       if (cursos) {
-        cursos.forEach((curso) => {
+        cursos.forEach((curso: any) => {
           cargaHorariaMap.set(curso.nome_curso, curso.carga_horaria);
         });
       }
