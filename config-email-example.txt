@@ -1,0 +1,23 @@
+# Configurações de Email para Certificados
+# Copie este arquivo para .env e configure com seus dados
+
+# Gmail (recomendado)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu-email@gmail.com
+SMTP_PASS=sua-senha-de-app
+SMTP_FROM="Mermãs Digitais <seu-email@gmail.com>"
+
+# Outlook/Hotmail (alternativa)
+# SMTP_HOST=smtp-mail.outlook.com
+# SMTP_PORT=587
+# SMTP_USER=seu-email@outlook.com
+# SMTP_PASS=sua-senha
+# SMTP_FROM="Mermãs Digitais <seu-email@outlook.com>"
+
+# SendGrid (profissional)
+# SMTP_HOST=smtp.sendgrid.net
+# SMTP_PORT=587
+# SMTP_USER=apikey
+# SMTP_PASS=sua-api-key-do-sendgrid
+# SMTP_FROM="Mermãs Digitais <noreply@seudominio.com>"

@@ -27,9 +27,12 @@ model Inscricoes {
   ano_escolar          String         @db.VarChar
   curso                String         @db.VarChar
   status               String?        @default("INSCRITA") @db.VarChar
-  documento_rg_cpf     String?
+  documento_rg_cpf      String?
   documento_declaracao String?
   documento_termo      String?
+  data_conclusao       DateTime?      @map("data_conclusao") @db.Date
+  certificado_enviado  Boolean        @default(false) @map("certificado_enviado")
+  certificado_enviado_em DateTime?    @map("certificado_enviado_em") @db.Timestamptz(6)
   createdAt            DateTime?      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime?      @default(now()) @map("updated_at") @db.Timestamptz(6)
   escola               String?
@@ -41,6 +44,7 @@ model Inscricoes {
   @@index([curso], map: "idx_inscricoes_curso")
   @@index([email], map: "idx_inscricoes_email")
   @@index([status], map: "idx_inscricoes_status")
+  @@index([certificado_enviado], map: "idx_inscricoes_certificado_enviado")
   @@map("inscricoes")
 }
 
@@ -293,4 +297,19 @@ model ParticipantesEventos {
   @@index([inscricaoId], map: "idx_participantes_eventos_inscricao_id")
   @@index([nome], map: "idx_participantes_eventos_nome")
   @@map("participantes_eventos")
+}
+
+model CertificadosConfig {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  edicao      String   @db.VarChar(50)
+  templateUrl String   @map("template_url") @db.VarChar(500)
+  ativo       Boolean  @default(false)
+  posicoes    Json     // Coordenadas X/Y para cada campo (nome, cpf, data, carga_horaria)
+  fontes      Json     // Configurações de fonte (tamanho, cor, família)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([ativo], map: "idx_certificados_config_ativo")
+  @@index([edicao], map: "idx_certificados_config_edicao")
+  @@map("certificados_config")
 }
