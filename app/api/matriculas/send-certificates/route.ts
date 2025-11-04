@@ -8,12 +8,55 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { alunaIds, dataConclusao } = body;
+    const { alunaIds, dataConclusao, emailAlternativos, pessoasManuais } = body;
 
-    // Validar dados de entrada
-    if (!alunaIds || !Array.isArray(alunaIds) || alunaIds.length === 0) {
+    // Validar que pelo menos um tipo de pessoa foi fornecido
+    const temAlunas =
+      alunaIds && Array.isArray(alunaIds) && alunaIds.length > 0;
+    const temPessoasManuais =
+      pessoasManuais &&
+      Array.isArray(pessoasManuais) &&
+      pessoasManuais.length > 0;
+
+    if (!temAlunas && !temPessoasManuais) {
       return NextResponse.json(
-        { error: "IDs das alunas são obrigatórios" },
+        { error: "É necessário fornecer IDs das alunas ou pessoas manuais" },
+        { status: 400 }
+      );
+    }
+
+    // Validar alunaIds se fornecido
+    if (alunaIds && (!Array.isArray(alunaIds) || alunaIds.length === 0)) {
+      return NextResponse.json(
+        { error: "IDs das alunas devem ser um array não vazio" },
+        { status: 400 }
+      );
+    }
+
+    // Validar pessoasManuais se fornecido
+    if (pessoasManuais) {
+      if (!Array.isArray(pessoasManuais) || pessoasManuais.length === 0) {
+        return NextResponse.json(
+          { error: "Pessoas manuais devem ser um array não vazio" },
+          { status: 400 }
+        );
+      }
+
+      // Validar estrutura de cada pessoa manual
+      for (const pessoa of pessoasManuais) {
+        if (!pessoa.nome || !pessoa.cpf || !pessoa.email || !pessoa.curso) {
+          return NextResponse.json(
+            { error: "Cada pessoa manual deve ter nome, CPF, email e curso" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // Validar emails alternativos se fornecidos
+    if (emailAlternativos && typeof emailAlternativos !== "object") {
+      return NextResponse.json(
+        { error: "Emails alternativos devem ser um objeto" },
         { status: 400 }
       );
     }
@@ -30,14 +73,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const totalAlunas = temAlunas ? alunaIds.length : 0;
+    const totalPessoasManuais = temPessoasManuais ? pessoasManuais.length : 0;
+
     console.log(
-      `Iniciando envio de certificados para ${alunaIds.length} alunas`
+      `Iniciando envio de certificados para ${totalAlunas} aluna(s) e ${totalPessoasManuais} pessoa(s) manual(is)`
     );
+    if (emailAlternativos && Object.keys(emailAlternativos).length > 0) {
+      console.log(
+        `Usando ${
+          Object.keys(emailAlternativos).length
+        } email(s) alternativo(s)`
+      );
+    }
 
     // Processar envio de certificados
     const results = await certificateService.sendCertificates(
-      alunaIds,
-      dataFinal
+      alunaIds || [],
+      dataFinal,
+      emailAlternativos,
+      pessoasManuais
     );
 
     // Estatísticas dos resultados

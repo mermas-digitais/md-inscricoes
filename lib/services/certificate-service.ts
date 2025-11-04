@@ -229,7 +229,10 @@ export class CertificateService {
     const dataEnvio = new Date().toLocaleDateString("pt-BR");
 
     // Texto principal do certificado
-    const textoCertificado = `Certificamos que ${alunaData.nome} (CPF: ${cpfFormatado}) concluiu com êxito o Curso de ${alunaData.curso}, realizado por Mermãs Digitais, com carga horária total de ${alunaData.carga_horaria} horas, no período de [data de início] a ${dataConclusao}.`;
+    const dataInicio = "18/08/2025";
+    const dataFinal = "23/10/2025";
+    const cargaHoraria = 84;
+    const textoCertificado = `Certificamos que ${alunaData.nome} (CPF: ${cpfFormatado}) concluiu com êxito o Curso de ${alunaData.curso}, realizado por Mermãs Digitais, com carga horária total de ${cargaHoraria} horas, no período de ${dataInicio} a ${dataFinal}.`;
 
     // Adicionar texto principal (centralizado)
     pdf.setFontSize(14);
@@ -256,7 +259,9 @@ export class CertificateService {
 
     // Calcular posição à direita (página tem 297mm de largura)
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const rightMargin = pageWidth - 20; // 20mm da margem direita
+    // Converter 50 pixels para mm (aproximadamente 50px = 13mm a 96dpi)
+    const pixelsToMm = (50 / 96) * 25.4; // ~13.2mm
+    const rightMargin = pageWidth - 20 - pixelsToMm; // 20mm da margem direita + 50px para a esquerda
 
     pdf.text(`Imperatriz - MA, ${dataEnvio}`, rightMargin, yPosition, {
       align: "right",
@@ -348,7 +353,15 @@ export class CertificateService {
    */
   async sendCertificates(
     alunaIds: string[],
-    dataConclusao?: Date
+    dataConclusao?: Date,
+    emailAlternativos?: Record<string, string>,
+    pessoasManuais?: Array<{
+      id: string;
+      nome: string;
+      cpf: string;
+      email: string;
+      curso: string;
+    }>
   ): Promise<CertificateResult[]> {
     try {
       // Configuração padrão do certificado
@@ -368,21 +381,48 @@ export class CertificateService {
         },
       };
 
-      // Buscar dados das alunas
-      const alunasData = await this.getAlunasData(alunaIds);
-      if (alunasData.length === 0) {
-        throw new Error("Nenhuma aluna encontrada");
-      }
-
       const results: CertificateResult[] = [];
 
-      // Processar cada aluna
-      for (const alunaData of alunasData) {
+      // Buscar dados das alunas do banco (se houver IDs)
+      let alunasData: AlunaData[] = [];
+      if (alunaIds && alunaIds.length > 0) {
+        alunasData = await this.getAlunasData(alunaIds);
+        if (
+          alunasData.length === 0 &&
+          (!pessoasManuais || pessoasManuais.length === 0)
+        ) {
+          throw new Error("Nenhuma aluna encontrada");
+        }
+      }
+
+      // Converter pessoas manuais para AlunaData
+      const pessoasManuaisData: AlunaData[] =
+        pessoasManuais?.map((pessoa) => ({
+          id: pessoa.id,
+          nome: pessoa.nome,
+          cpf: pessoa.cpf,
+          email: pessoa.email,
+          curso: pessoa.curso,
+          data_conclusao: dataConclusao || new Date(),
+          carga_horaria: 84, // Carga horária fixa conforme definido anteriormente
+        })) || [];
+
+      // Combinar alunas do banco e pessoas manuais
+      const todasAlunas = [...alunasData, ...pessoasManuaisData];
+
+      // Processar cada pessoa (alunas do banco + pessoas manuais)
+      for (const alunaData of todasAlunas) {
         try {
           // Usar data de conclusão fornecida ou da aluna
           const dataFinal =
             dataConclusao || alunaData.data_conclusao || new Date();
           const alunaComData = { ...alunaData, data_conclusao: dataFinal };
+
+          // Usar email alternativo se fornecido, senão usar email da aluna/pessoa
+          // Para pessoas manuais, o email já vem no objeto, então não precisa alternativo
+          const emailDestino =
+            emailAlternativos?.[alunaData.id] || alunaData.email;
+          const alunaComEmail = { ...alunaComData, email: emailDestino };
 
           // Gerar PDF
           const pdfBuffer = await this.generateCertificate(
@@ -391,13 +431,18 @@ export class CertificateService {
           );
 
           // Enviar email
-          const messageId = await this.sendCertificate(alunaComData, pdfBuffer);
+          const messageId = await this.sendCertificate(
+            alunaComEmail,
+            pdfBuffer
+          );
 
           // Por enquanto, vamos apenas logar o certificado enviado
           console.log("Certificado enviado para:", {
             alunaId: alunaData.id,
             nome: alunaData.nome,
-            email: alunaData.email,
+            email: emailDestino,
+            emailOriginal: alunaData.email,
+            emailAlternativo: emailAlternativos?.[alunaData.id] || null,
             templateUrl: config.templateUrl,
             dataConclusao: dataFinal,
           });
@@ -406,13 +451,15 @@ export class CertificateService {
             success: true,
             alunaId: alunaData.id,
             alunaNome: alunaData.nome,
-            email: alunaData.email,
+            email: emailDestino,
             messageId,
           });
 
           // Delay entre envios para evitar rate limiting
           await new Promise((resolve) => setTimeout(resolve, 100));
         } catch (error) {
+          const emailDestino =
+            emailAlternativos?.[alunaData.id] || alunaData.email;
           console.error(
             `Erro ao processar certificado para ${alunaData.nome}:`,
             error
@@ -421,7 +468,7 @@ export class CertificateService {
             success: false,
             alunaId: alunaData.id,
             alunaNome: alunaData.nome,
-            email: alunaData.email,
+            email: emailDestino,
             error: error instanceof Error ? error.message : "Erro desconhecido",
           });
         }

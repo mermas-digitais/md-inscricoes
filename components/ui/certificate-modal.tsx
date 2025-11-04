@@ -51,6 +51,14 @@ interface CertificateResult {
   messageId?: string;
 }
 
+interface PessoaManual {
+  id: string; // ID temporário gerado
+  nome: string;
+  cpf: string;
+  email: string;
+  curso: string;
+}
+
 export function CertificateModal({
   isOpen,
   onClose,
@@ -60,6 +68,16 @@ export function CertificateModal({
   const [isSending, setIsSending] = useState(false);
   const [results, setResults] = useState<CertificateResult[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [emailAlternativos, setEmailAlternativos] = useState<
+    Record<string, string>
+  >({});
+  const [pessoasManuais, setPessoasManuais] = useState<PessoaManual[]>([]);
+  const [novaPessoa, setNovaPessoa] = useState<Omit<PessoaManual, "id">>({
+    nome: "",
+    cpf: "",
+    email: "",
+    curso: "",
+  });
 
   // Definir data padrão como hoje
   useEffect(() => {
@@ -77,14 +95,74 @@ export function CertificateModal({
       setResults([]);
       setShowResults(false);
       setIsSending(false);
+      setEmailAlternativos({});
+      setPessoasManuais([]);
+      setNovaPessoa({ nome: "", cpf: "", email: "", curso: "" });
     }
   }, [isOpen]);
 
-  const handleSendCertificates = async () => {
-    if (selectedAlunas.length === 0) {
+  const handleAddPessoaManual = () => {
+    if (
+      !novaPessoa.nome ||
+      !novaPessoa.cpf ||
+      !novaPessoa.email ||
+      !novaPessoa.curso
+    ) {
       toast({
         title: "Erro",
-        description: "Nenhuma aluna selecionada",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar CPF básico (11 dígitos)
+    const cpfLimpo = novaPessoa.cpf.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) {
+      toast({
+        title: "Erro",
+        description: "CPF deve conter 11 dígitos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar email básico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(novaPessoa.email)) {
+      toast({
+        title: "Erro",
+        description: "Email inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const pessoa: PessoaManual = {
+      id: `manual-${Date.now()}-${Math.random()}`,
+      ...novaPessoa,
+    };
+
+    setPessoasManuais([...pessoasManuais, pessoa]);
+    setNovaPessoa({ nome: "", cpf: "", email: "", curso: "" });
+
+    toast({
+      title: "Pessoa adicionada",
+      description: `${pessoa.nome} foi adicionada à lista`,
+    });
+  };
+
+  const handleRemovePessoaManual = (id: string) => {
+    setPessoasManuais(pessoasManuais.filter((p) => p.id !== id));
+  };
+
+  const handleSendCertificates = async () => {
+    const totalPessoas = selectedAlunas.length + pessoasManuais.length;
+
+    if (totalPessoas === 0) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma pessoa selecionada ou adicionada",
         variant: "destructive",
       });
       return;
@@ -109,8 +187,17 @@ export function CertificateModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          alunaIds: selectedAlunas.map((aluna) => aluna.id),
+          alunaIds:
+            selectedAlunas.length > 0
+              ? selectedAlunas.map((aluna) => aluna.id)
+              : undefined,
           dataConclusao: dataConclusao,
+          emailAlternativos:
+            Object.keys(emailAlternativos).length > 0
+              ? emailAlternativos
+              : undefined,
+          pessoasManuais:
+            pessoasManuais.length > 0 ? pessoasManuais : undefined,
         }),
       });
 
@@ -170,23 +257,174 @@ export function CertificateModal({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-40 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
                 {selectedAlunas.map((aluna) => (
                   <div
                     key={aluna.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="p-3 bg-gray-50 rounded-lg space-y-2"
                   >
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{aluna.nome}</div>
-                      <div className="text-xs text-gray-500">{aluna.email}</div>
-                      <div className="text-xs text-gray-500">{aluna.curso}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{aluna.nome}</div>
+                        <div className="text-xs text-gray-500">
+                          Email: {aluna.email}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {aluna.curso}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {aluna.status}
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {aluna.status}
-                    </Badge>
+                    <div className="space-y-1">
+                      <Label htmlFor={`email-${aluna.id}`} className="text-xs">
+                        Email alternativo (opcional)
+                      </Label>
+                      <Input
+                        id={`email-${aluna.id}`}
+                        type="email"
+                        placeholder="Deixe em branco para usar o email cadastrado"
+                        value={emailAlternativos[aluna.id] || ""}
+                        onChange={(e) => {
+                          const newEmails = { ...emailAlternativos };
+                          if (e.target.value.trim()) {
+                            newEmails[aluna.id] = e.target.value.trim();
+                          } else {
+                            delete newEmails[aluna.id];
+                          }
+                          setEmailAlternativos(newEmails);
+                        }}
+                        disabled={isSending}
+                        className="text-xs"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Adicionar pessoas manualmente */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="w-5 h-5" />
+                Adicionar Pessoa Manualmente ({pessoasManuais.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Formulário para adicionar nova pessoa */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="space-y-1">
+                  <Label htmlFor="nome-manual" className="text-xs">
+                    Nome Completo *
+                  </Label>
+                  <Input
+                    id="nome-manual"
+                    type="text"
+                    placeholder="Nome completo"
+                    value={novaPessoa.nome}
+                    onChange={(e) =>
+                      setNovaPessoa({ ...novaPessoa, nome: e.target.value })
+                    }
+                    disabled={isSending}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="cpf-manual" className="text-xs">
+                    CPF *
+                  </Label>
+                  <Input
+                    id="cpf-manual"
+                    type="text"
+                    placeholder="000.000.000-00"
+                    value={novaPessoa.cpf}
+                    onChange={(e) =>
+                      setNovaPessoa({ ...novaPessoa, cpf: e.target.value })
+                    }
+                    disabled={isSending}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="email-manual" className="text-xs">
+                    Email *
+                  </Label>
+                  <Input
+                    id="email-manual"
+                    type="email"
+                    placeholder="email@exemplo.com"
+                    value={novaPessoa.email}
+                    onChange={(e) =>
+                      setNovaPessoa({ ...novaPessoa, email: e.target.value })
+                    }
+                    disabled={isSending}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="curso-manual" className="text-xs">
+                    Curso *
+                  </Label>
+                  <Input
+                    id="curso-manual"
+                    type="text"
+                    placeholder="Nome do curso"
+                    value={novaPessoa.curso}
+                    onChange={(e) =>
+                      setNovaPessoa({ ...novaPessoa, curso: e.target.value })
+                    }
+                    disabled={isSending}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Button
+                    type="button"
+                    onClick={handleAddPessoaManual}
+                    disabled={isSending}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-xs"
+                    size="sm"
+                  >
+                    <Users className="w-3 h-3 mr-2" />
+                    Adicionar Pessoa
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lista de pessoas adicionadas manualmente */}
+              {pessoasManuais.length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {pessoasManuais.map((pessoa) => (
+                    <div
+                      key={pessoa.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{pessoa.nome}</div>
+                        <div className="text-xs text-gray-500">
+                          CPF: {pessoa.cpf} | Email: {pessoa.email}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Curso: {pessoa.curso}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemovePessoaManual(pessoa.id)}
+                        disabled={isSending}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -320,7 +558,10 @@ export function CertificateModal({
           {!showResults && (
             <Button
               onClick={handleSendCertificates}
-              disabled={isSending || selectedAlunas.length === 0}
+              disabled={
+                isSending ||
+                (selectedAlunas.length === 0 && pessoasManuais.length === 0)
+              }
               className="bg-purple-600 hover:bg-purple-700"
             >
               {isSending ? (
