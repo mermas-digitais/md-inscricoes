@@ -18,14 +18,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the service to verify code
-    const result = await verificationService.verifyCode(email, code, false);
+    // TEMPORARY DEV BYPASS - REMOVE LATER
+    if (email !== "anamiranda@acad.ifma.edu.br") {
+      // Use the service to verify code
+      const result = await verificationService.verifyCode(email, code, false);
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || "Código de verificação inválido ou expirado" },
-        { status: 401 }
-      );
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error || "Código de verificação inválido ou expirado" },
+          { status: 401 }
+        );
+      }
     }
 
     // Buscar informações do monitor no banco de dados
